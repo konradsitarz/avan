@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 from ....core.llm import get_llm
 from ..prompts.classify import CLASSIFY_SYSTEM, CLASSIFY_USER
+from ..fewshot import load_few_shot_examples
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +42,11 @@ class ClassificationResult(BaseModel):
     sender_type: SenderType = Field(description="Who sent the message")
 
 
-def classify(state: dict) -> dict:
+async def classify(state: dict) -> dict:
     llm = get_llm(temperature=0.1).with_structured_output(ClassificationResult)
+
+    # Load few-shot examples from manager overrides
+    few_shot = await load_few_shot_examples()
 
     prompt = CLASSIFY_USER.format(
         sender=state["sender"],
@@ -51,8 +55,14 @@ def classify(state: dict) -> dict:
         content=state["content"],
     )
 
+    # Inject few-shot examples between system prompt and user prompt
+    full_prompt = CLASSIFY_SYSTEM
+    if few_shot:
+        full_prompt += f"\n\n{few_shot}"
+    full_prompt += f"\n\n{prompt}"
+
     try:
-        result = llm.invoke(f"{CLASSIFY_SYSTEM}\n\n{prompt}")
+        result = llm.invoke(full_prompt)
     except Exception as e:
         logger.warning(f"Structured classify failed, using defaults: {e}")
         result = ClassificationResult(

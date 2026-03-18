@@ -10,6 +10,7 @@ export const createMessage = (msg) => api.post('/api/messages', msg).then(r => r
 export const updateMessage = (id, msg) => api.put(`/api/messages/${id}`, msg).then(r => r.data)
 export const deleteMessage = (id) => api.delete(`/api/messages/${id}`).then(r => r.data)
 export const deleteAllMessages = () => api.delete('/api/messages/all').then(r => r.data)
+export const overrideMessage = (id, override) => api.post(`/api/messages/${id}/override`, override).then(r => r.data)
 
 export const getBriefing = () => api.get('/api/briefing').then(r => r.data)
 

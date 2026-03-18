@@ -133,6 +133,48 @@
             </div>
           </div>
 
+          <!-- Override controls -->
+          <div class="issue-override">
+            <button class="btn btn-sm" @click="showOverride = !showOverride">
+              {{ showOverride ? 'Cancel override' : 'Override triage' }}
+            </button>
+            <div v-if="showOverride" class="override-form">
+              <div class="override-row">
+                <label>Priority</label>
+                <select v-model="overrideData.priority">
+                  <option value="">keep</option>
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                  <option value="urgent">urgent</option>
+                </select>
+              </div>
+              <div class="override-row">
+                <label>Category</label>
+                <select v-model="overrideData.category">
+                  <option value="">keep</option>
+                  <option value="safety">safety</option>
+                  <option value="plumbing">plumbing</option>
+                  <option value="electrical">electrical</option>
+                  <option value="noise">noise</option>
+                  <option value="maintenance">maintenance</option>
+                  <option value="billing">billing</option>
+                  <option value="access">access</option>
+                  <option value="compliance">compliance</option>
+                  <option value="other">other</option>
+                </select>
+              </div>
+              <div class="override-row">
+                <label>Reason</label>
+                <input v-model="overrideData.reason" placeholder="Why are you overriding?" />
+              </div>
+              <button class="btn btn-primary btn-sm" @click="submitOverride" :disabled="overrideLoading">
+                {{ overrideLoading ? 'Saving...' : 'Save override' }}
+              </button>
+              <span v-if="overrideSaved" class="override-saved">Saved — will improve future triage</span>
+            </div>
+          </div>
+
           <!-- Quick actions -->
           <div class="issue-actions">
             <button class="btn btn-sm" @click="prevIssue" :disabled="currentIndex === 0">Previous</button>
@@ -168,14 +210,24 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { getBriefing } from '../api.js'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { getBriefing, overrideMessage } from '../api.js'
 
 const briefing = ref(null)
 const loading = ref(false)
 const error = ref(null)
 const phase = ref('summary') // summary | review | done
 const currentIndex = ref(0)
+
+// Override state
+const showOverride = ref(false)
+const overrideLoading = ref(false)
+const overrideSaved = ref(false)
+const overrideData = reactive({
+  priority: '',
+  category: '',
+  reason: '',
+})
 
 const currentIssue = computed(() => {
   if (!briefing.value || !briefing.value.issues.length) return null
@@ -208,6 +260,36 @@ const nextIssue = () => {
 const prevIssue = () => {
   if (currentIndex.value > 0) {
     currentIndex.value--
+  }
+}
+
+// Reset override form when switching issues
+watch(currentIndex, () => {
+  showOverride.value = false
+  overrideSaved.value = false
+  overrideData.priority = ''
+  overrideData.category = ''
+  overrideData.reason = ''
+})
+
+const submitOverride = async () => {
+  if (!currentIssue.value) return
+  overrideLoading.value = true
+  overrideSaved.value = false
+  try {
+    const payload = {}
+    if (overrideData.priority) payload.priority = overrideData.priority
+    if (overrideData.category) payload.category = overrideData.category
+    if (overrideData.reason) payload.reason = overrideData.reason
+    const updated = await overrideMessage(currentIssue.value.id, payload)
+    // Update the issue in place
+    if (overrideData.priority) currentIssue.value.priority = overrideData.priority
+    if (overrideData.category) currentIssue.value.category = overrideData.category
+    overrideSaved.value = true
+  } catch (e) {
+    // ignore
+  } finally {
+    overrideLoading.value = false
   }
 }
 
@@ -639,6 +721,43 @@ onMounted(fetchBriefing)
 
 .unassigned {
   color: var(--urgent) !important;
+}
+
+/* Override */
+.issue-override {
+  padding: 12px 24px;
+  border-top: 1px solid var(--border);
+}
+
+.override-form {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.override-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.override-row label {
+  min-width: 70px;
+  margin-bottom: 0;
+}
+
+.override-row select,
+.override-row input {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.override-saved {
+  font-size: 11px;
+  color: var(--success);
+  font-weight: 600;
 }
 
 /* Actions */
