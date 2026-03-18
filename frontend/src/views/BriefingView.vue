@@ -1,0 +1,559 @@
+<template>
+  <div class="briefing">
+    <!-- Loading -->
+    <div v-if="loading" class="briefing-loading">
+      <div class="loading-pulse"></div>
+      <p>Preparing your briefing...</p>
+    </div>
+
+    <div v-else-if="error" class="empty-state" style="color: var(--urgent)">{{ error }}</div>
+
+    <div v-else-if="briefing" class="briefing-document">
+
+      <!-- PHASE 1: Summary -->
+      <div v-if="phase === 'summary'" class="phase-summary">
+        <div class="briefing-date">{{ formatDate(briefing.generated_at) }}</div>
+
+        <div class="summary-card">
+          <div class="summary-avatar">N</div>
+          <div class="summary-body">
+            <div class="summary-label">Your Morning Briefing</div>
+            <p class="summary-text">{{ briefing.summary }}</p>
+          </div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-pill" :class="{ active: briefing.stats.urgent > 0 }">
+            <span class="pill-dot dot-urgent"></span>
+            <span>{{ briefing.stats.urgent }} urgent</span>
+          </div>
+          <div class="stat-pill">
+            <span class="pill-dot dot-high"></span>
+            <span>{{ briefing.stats.high }} high</span>
+          </div>
+          <div class="stat-pill">
+            <span class="pill-dot dot-medium"></span>
+            <span>{{ briefing.stats.medium + briefing.stats.low }} routine</span>
+          </div>
+          <div class="stat-pill">
+            <span>{{ briefing.stats.unassigned }} unassigned</span>
+          </div>
+        </div>
+
+        <button
+          v-if="briefing.issues.length > 0"
+          class="btn-begin"
+          @click="beginReview"
+        >
+          Review issues one by one
+          <span class="btn-count">{{ briefing.issues.length }}</span>
+        </button>
+      </div>
+
+      <!-- PHASE 2: Issue-by-issue review -->
+      <div v-if="phase === 'review'" class="phase-review">
+        <div class="review-nav">
+          <button class="btn btn-sm" @click="phase = 'summary'">Back to briefing</button>
+          <span class="review-progress">{{ currentIndex + 1 }} of {{ briefing.issues.length }}</span>
+          <div class="review-dots">
+            <span
+              v-for="(issue, idx) in briefing.issues"
+              :key="issue.id"
+              class="dot"
+              :class="[`dot-${issue.priority}`, { current: idx === currentIndex }]"
+              @click="currentIndex = idx"
+            ></span>
+          </div>
+        </div>
+
+        <div class="issue-card" v-if="currentIssue">
+          <div class="issue-priority-bar" :class="`bar-${currentIssue.priority}`"></div>
+
+          <div class="issue-meta">
+            <span class="badge" :class="`badge-${currentIssue.priority}`">{{ currentIssue.priority }}</span>
+            <span class="badge" :class="`badge-${currentIssue.type}`">{{ currentIssue.type }}</span>
+            <span class="issue-time">{{ currentIssue.time_label }}</span>
+          </div>
+
+          <div class="issue-from">
+            <label>From</label>
+            <span>{{ currentIssue.sender }}</span>
+          </div>
+
+          <!-- LLM Brief — the concierge summary -->
+          <div v-if="currentIssue.llm_brief" class="issue-brief">
+            <div class="brief-icon">N</div>
+            <p>{{ currentIssue.llm_brief }}</p>
+          </div>
+
+          <!-- Original message -->
+          <div class="issue-original">
+            <label>Original message</label>
+            <p>{{ currentIssue.content }}</p>
+          </div>
+
+          <div class="issue-details">
+            <div class="detail-item" v-if="currentIssue.followup_count > 0">
+              <label>Follow-ups</label>
+              <span class="followup-count">{{ currentIssue.followup_count }}x</span>
+            </div>
+            <div class="detail-item">
+              <label>Assigned to</label>
+              <span :class="{ unassigned: !currentIssue.assigned_to }">
+                {{ currentIssue.assigned_to || 'Nobody' }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Quick actions -->
+          <div class="issue-actions">
+            <button class="btn btn-sm" @click="prevIssue" :disabled="currentIndex === 0">Previous</button>
+            <button
+              class="btn btn-primary btn-sm"
+              @click="nextIssue"
+              v-if="currentIndex < briefing.issues.length - 1"
+            >Next issue</button>
+            <button
+              class="btn btn-primary btn-sm"
+              @click="phase = 'done'"
+              v-else
+            >Finish review</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PHASE 3: Done -->
+      <div v-if="phase === 'done'" class="phase-done">
+        <div class="done-card">
+          <div class="done-icon">&#10003;</div>
+          <h2>Briefing complete</h2>
+          <p>You've reviewed all {{ briefing.issues.length }} issues.</p>
+          <div class="done-actions">
+            <button class="btn" @click="phase = 'summary'">Back to summary</button>
+            <router-link to="/feed" class="btn btn-primary">Open full feed</router-link>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { getBriefing } from '../api.js'
+
+const briefing = ref(null)
+const loading = ref(false)
+const error = ref(null)
+const phase = ref('summary') // summary | review | done
+const currentIndex = ref(0)
+
+const currentIssue = computed(() => {
+  if (!briefing.value || !briefing.value.issues.length) return null
+  return briefing.value.issues[currentIndex.value]
+})
+
+const fetchBriefing = async () => {
+  loading.value = true
+  error.value = null
+  try {
+    briefing.value = await getBriefing()
+  } catch (e) {
+    error.value = 'Failed to generate briefing'
+  } finally {
+    loading.value = false
+  }
+}
+
+const beginReview = () => {
+  currentIndex.value = 0
+  phase.value = 'review'
+}
+
+const nextIssue = () => {
+  if (currentIndex.value < briefing.value.issues.length - 1) {
+    currentIndex.value++
+  }
+}
+
+const prevIssue = () => {
+  if (currentIndex.value > 0) {
+    currentIndex.value--
+  }
+}
+
+const formatDate = (dateStr) => {
+  const d = new Date(dateStr)
+  return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+}
+
+onMounted(fetchBriefing)
+</script>
+
+<style scoped>
+.briefing {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+/* Loading */
+.briefing-loading {
+  text-align: center;
+  padding: 80px 24px;
+  color: var(--text-muted);
+}
+
+.loading-pulse {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.3;
+  margin: 0 auto 16px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(0.8); opacity: 0.3; }
+  50% { transform: scale(1.1); opacity: 0.6; }
+}
+
+/* Summary phase */
+.briefing-date {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 20px;
+}
+
+.summary-card {
+  display: flex;
+  gap: 16px;
+  padding: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-bottom: 24px;
+}
+
+.summary-avatar {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #58a6ff, #3b82f6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.summary-body {
+  flex: 1;
+}
+
+.summary-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.summary-text {
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+/* Stats row */
+.stats-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+
+.stat-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.stat-pill.active {
+  border-color: var(--urgent);
+  color: var(--urgent);
+}
+
+.pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.pill-dot.dot-urgent { background: var(--urgent); }
+.pill-dot.dot-high { background: var(--high); }
+.pill-dot.dot-medium { background: var(--medium); }
+
+/* Begin button */
+.btn-begin {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 18px 24px;
+  background: linear-gradient(135deg, rgba(88,166,255,0.1), rgba(88,166,255,0.05));
+  border: 1px solid var(--accent);
+  border-radius: 12px;
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-begin:hover {
+  background: linear-gradient(135deg, rgba(88,166,255,0.2), rgba(88,166,255,0.1));
+}
+
+.btn-count {
+  margin-left: auto;
+  background: var(--accent);
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+
+/* Review phase */
+.review-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.review-progress {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.review-dots {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+
+.review-dots .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0.4;
+  transition: all 0.15s;
+}
+
+.review-dots .dot.current {
+  opacity: 1;
+  transform: scale(1.3);
+}
+
+.review-dots .dot.dot-urgent { background: var(--urgent); }
+.review-dots .dot.dot-high { background: var(--high); }
+.review-dots .dot.dot-medium { background: var(--medium); }
+.review-dots .dot.dot-low { background: var(--low); }
+
+/* Issue card */
+.issue-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.issue-priority-bar {
+  height: 4px;
+}
+
+.bar-urgent { background: var(--urgent); }
+.bar-high { background: var(--high); }
+.bar-medium { background: var(--medium); }
+.bar-low { background: var(--low); }
+
+.issue-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 24px 0;
+}
+
+.issue-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.issue-from {
+  padding: 12px 24px 0;
+}
+
+.issue-from label {
+  margin-bottom: 2px;
+}
+
+.issue-from span {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* LLM Brief */
+.issue-brief {
+  display: flex;
+  gap: 12px;
+  margin: 16px 24px;
+  padding: 16px;
+  background: rgba(88, 166, 255, 0.06);
+  border: 1px solid rgba(88, 166, 255, 0.15);
+  border-radius: 10px;
+}
+
+.brief-icon {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, #58a6ff, #3b82f6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 12px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.issue-brief p {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+/* Original message */
+.issue-original {
+  padding: 0 24px;
+  margin-bottom: 16px;
+}
+
+.issue-original p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  padding: 12px;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  margin-top: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Details */
+.issue-details {
+  display: flex;
+  gap: 24px;
+  padding: 12px 24px;
+  border-top: 1px solid var(--border);
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.detail-item span {
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.followup-count {
+  color: var(--high) !important;
+  font-weight: 700 !important;
+}
+
+.unassigned {
+  color: var(--urgent) !important;
+}
+
+/* Actions */
+.issue-actions {
+  display: flex;
+  gap: 8px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border);
+  justify-content: flex-end;
+}
+
+/* Done phase */
+.phase-done {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+
+.done-card {
+  text-align: center;
+  padding: 48px;
+}
+
+.done-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(63, 185, 80, 0.15);
+  color: var(--success);
+  font-size: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.done-card h2 {
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.done-card p {
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+
+.done-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.done-actions .btn-primary {
+  text-decoration: none;
+}
+</style>
