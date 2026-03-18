@@ -4,12 +4,13 @@ Intelligent triage system for residential property managers in Eastern Central E
 
 ## What It Does
 
-1. **Messages come in** from residents (email, SMS, voice transcription)
+1. **Messages come in** from residents (email, SMS, voice transcription - currently simulated)
 2. **Triage agent** classifies each message: category, priority, sender type
 3. **Relates** to existing tickets from the same sender/category
 4. **Decides** action: escalate, group with existing issue, or standard handling
-5. **Drafts** a channel-appropriate response (skipped for escalations — admin decides)
+5. **Drafts** a channel-appropriate response
 6. **Briefing** groups related messages into issue threads with timelines and LLM-written summaries
+7. **Event calendar** (planned) — recurring and one-off property events included in briefing for full situational awareness
 
 ## Quick Start
 
@@ -34,26 +35,30 @@ docker compose up -d
 | Layer | Stack |
 |-------|-------|
 | **Backend** | Python 3.14, FastAPI, Beanie ODM, MongoDB, LangGraph + LangChain |
-| **Frontend** | Vue 3 (Composition API), Vite, Axios |
+| **Frontend** | Vue 3 (Composition API), Pinia, Vite, Axios |
 | **LLM** | OpenAI GPT-4o-mini (configurable via `LLM_MODEL`) |
+| **TTS** | ElevenLabs (multilingual v2) |
 | **Infra** | Docker Compose (MongoDB, backend, frontend) |
 
 ## Project Structure
 
 ```
 backend/src/
-├── core/              # Database init, shared LLM factory
-├── models/            # Message, Briefing (Beanie documents)
+├── core/              # Database init, shared LLM factory, TTS client
+├── models/            # Message, Briefing, TriageOverride (Beanie documents)
 ├── agents/triage/     # LangGraph: classify → relate → decide → draft
 │   ├── nodes/         # Each step as a separate module
-│   └── prompts/       # LLM prompts for classify and draft
+│   ├── prompts/       # LLM prompts for classify and draft
+│   └── fewshot.py     # Few-shot examples from manager overrides
 ├── services/          # BriefingService (cached + grouped), TriageService
 ├── routers/           # Thin HTTP endpoints
 └── main.py
 
 frontend/src/
 ├── views/             # Briefing, Feed, Timeline, Respond
+├── stores/            # Pinia stores (messages, briefing)
 ├── components/        # FireBar (simulation bar)
+├── labels.js          # Polish display labels for enums
 ├── api.js             # Axios API client
 └── App.vue            # Layout with sidebar + router
 ```
@@ -68,7 +73,10 @@ frontend/src/
 | `PUT` | `/api/messages/{id}` | Update message |
 | `DELETE` | `/api/messages/{id}` | Delete message |
 | `DELETE` | `/api/messages/all` | Clear all messages + briefings (simulation reset) |
+| `POST` | `/api/messages/{id}/override` | Override triage decision (stored as few-shot example) |
+| `POST` | `/api/messages/{id}/generate-reply` | Generate LLM draft reply on demand |
 | `GET` | `/api/briefing` | Get briefing (cached, regenerates when stale) |
+| `POST` | `/api/tts` | Text-to-speech via ElevenLabs |
 
 ## Triage Agent
 
@@ -85,6 +93,7 @@ classify → relate → decide
 - **relate**: Same-sender grouping (free) + LLM semantic matching for cross-sender issues (structured output, gpt-4o-mini). Matches by "same physical issue" = same problem type + same location. Fires only when no same-sender match exists, cross-sender candidates exist in the same category, and API key is set.
 - **decide**: Rule-based escalation (urgent/safety/plumbing/electrical/compliance/3+ followups)
 - **draft**: LLM generates response appropriate for the channel (SMS = 160 chars, email = 2-4 sentences)
+- **Few-shot learning loop**: Manager overrides (via `/api/messages/{id}/override`) are stored as `TriageOverride` documents and injected into future classify prompts as few-shot examples, so the system learns from corrections over time.
 
 ### Classification Axes
 
@@ -124,7 +133,7 @@ Issues are sorted by Eisenhower quadrant, then life-threat category (safety/plum
 
 Each issue shows:
 - LLM-written brief synthesizing the full thread
-- Urgency badge (teraz / dziś / ten tydzień / bez pośpiechu)
+- Urgency badge (now / today / this week / no rush)
 - Triage reasoning (why this priority/action was chosen)
 - Timeline of all messages in the thread
 - Category, priority, assignment status
@@ -162,7 +171,27 @@ docker compose up -d --build backend
 | `VITE_API_URL` | `http://localhost:8000` | Backend URL for frontend |
 | `OPENAI_API_KEY` | — | Required for LLM triage/briefing |
 | `LLM_MODEL` | `gpt-4o-mini` | OpenAI model to use |
+| `ELEVENLABS_API_KEY` | — | Required for text-to-speech |
+| `ELEVENLABS_VOICE_ID` | — | Optional voice override (auto-detects first available) |
+
+## Design Decisions
+
+### Deliberate simplifications
+
+- **Intake layer uses simulated seed data.** Production: Twilio webhook (SMS), IMAP/SendGrid (email). This is "plumbing" — doesn't demonstrate system value.
+- **MongoDB for prototype** — zero config with Docker Compose, Beanie ODM gives type-safe models. Swapping backends means changing one adapter in `core/database.py`.
+- **LangGraph over plain LLM calls** — agent has state, conditional edges (escalations skip drafting), every decision is logged with `action_reason`. Not a prompt wrapper.
+- **Enum values in English internally, Polish display labels via `labels.js`** — zero migration on translation changes.
+
+### Known issues
+
+- **Latency:** triage runs server-side synchronously, UI refreshes on reload/navigation. No streaming. Fix: SSE or WebSocket on `/api/messages/{id}/stream`.
+- **Triage edge cases:** neighbor disputes, ambiguous issues get miscategorized. No "requires human review" fallback — override is post-hoc.
+- **Grouping:** works for a single building. Multiple buildings = false positives without a CRM mapping resident → unit → building.
+- **Multilingual:** CEE = PL/EN/UA/RO. Agent detects language and preserves original, but draft doesn't generate in sender's language. UI is Polish only. Target: draft in sender's language, admin interface in their language, cultural context (not just translation).
+- **Draft responses:** suggested action + editable draft exist, but sending is simulated. No outbound channel integration.
+- **Regex fallback is shallow:** without `OPENAI_API_KEY`, only priority is set (no category, urgency, grouping, or draft). Polish patterns only — non-PL messages default to medium.
 
 ## License
 
-Proprietary — Nava Property Management
+Copyright (c) 2026 Konrad Sitarz. All rights reserved.

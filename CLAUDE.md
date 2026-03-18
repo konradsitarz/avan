@@ -39,10 +39,12 @@ npm run build                # Production build
 backend/src/
 ├── core/              # Infrastructure
 │   ├── database.py    # MongoDB + Beanie init
-│   └── llm.py         # Shared LLM factory (get_llm)
+│   ├── llm.py         # Shared LLM factory (get_llm)
+│   └── tts.py         # ElevenLabs TTS client
 ├── models/            # Beanie documents
 │   ├── message.py     # Message with triage fields (category, priority, urgency, importance, sender_type, triage_action, group_with, etc.)
-│   └── briefing.py    # Cached briefing with stale flag
+│   ├── briefing.py    # Cached briefing with stale flag
+│   └── override.py    # TriageOverride — manager corrections as few-shot examples
 ├── agents/            # LangGraph agents
 │   └── triage/        # Triage agent: classify → relate → decide → draft
 │       ├── state.py   # TriageState TypedDict
@@ -53,8 +55,9 @@ backend/src/
 │   ├── briefing_service.py  # Cached briefing with group_with + Eisenhower sorting, LangGraph generation
 │   └── triage_service.py    # Orchestrates triage agent, regex fallback when no API key
 ├── routers/           # Thin HTTP endpoints
-│   ├── messages.py    # CRUD + DELETE /all for simulation reset
-│   └── briefing.py    # Delegates to BriefingService
+│   ├── messages.py    # CRUD + override + generate-reply
+│   ├── briefing.py    # Delegates to BriefingService
+│   └── tts.py         # Text-to-speech endpoint
 └── main.py            # FastAPI app with CORS and lifespan
 ```
 
@@ -63,7 +66,8 @@ backend/src/
 - Briefing view shows grouped issues with timeline, triage reasoning, and LLM briefs
 - FireBar simulation component: collapsible bottom bar with message firing, custom compose, and clear all
 - API base URL configured via `VITE_API_URL` env var (fallback: `http://localhost:8000`)
-- No state management library; local component state only
+- Pinia stores for messages and briefing state
+- Polish display labels via `labels.js` (enum values stay English internally)
 
 ### Key Agents
 
@@ -109,6 +113,8 @@ See `.env.example`. Key vars:
 - `VITE_API_URL` — Backend URL for frontend (default: `http://localhost:8000`)
 - `OPENAI_API_KEY` — Required for LLM-powered triage and briefing (falls back to regex without it)
 - `LLM_MODEL` — Model to use (default: `gpt-4o-mini`)
+- `ELEVENLABS_API_KEY` — Required for text-to-speech
+- `ELEVENLABS_VOICE_ID` — Optional voice override (auto-detects first available)
 
 ## Services (Docker Compose)
 
@@ -123,5 +129,8 @@ See `.env.example`. Key vars:
 - `GET|POST /api/messages` — List/create messages (POST runs triage agent)
 - `GET|PUT|DELETE /api/messages/{id}` — Single message operations
 - `DELETE /api/messages/all` — Clear all messages and briefings (simulation reset)
+- `POST /api/messages/{id}/override` — Override triage (stored as few-shot example)
+- `POST /api/messages/{id}/generate-reply` — Generate LLM draft reply on demand
 - `GET /api/briefing` — Get briefing (returns cached or regenerates if stale)
+- `POST /api/tts` — Text-to-speech via ElevenLabs
 - Swagger docs at `http://localhost:8000/docs`
