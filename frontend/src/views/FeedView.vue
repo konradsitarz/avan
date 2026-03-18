@@ -3,34 +3,34 @@
     <div class="page-header">
       <div class="header-row">
         <div>
-          <h1 class="page-title">Message Feed</h1>
-          <p class="page-subtitle">Prioritized by severity</p>
+          <h1 class="page-title">Zgłoszenia</h1>
+          <p class="page-subtitle">Posortowane wg priorytetu</p>
         </div>
         <div class="header-actions">
           <div class="filter-group">
             <select v-model="filterPriority">
-              <option value="">All priorities</option>
-              <option value="urgent">Urgent</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
+              <option value="">Wszystkie priorytety</option>
+              <option value="urgent">Pilne</option>
+              <option value="high">Ważne</option>
+              <option value="medium">Średnie</option>
+              <option value="low">Niskie</option>
             </select>
             <select v-model="filterType">
-              <option value="">All channels</option>
+              <option value="">Wszystkie kanały</option>
               <option value="email">Email</option>
               <option value="sms">SMS</option>
-              <option value="voice">Voice</option>
+              <option value="voice">Telefon</option>
             </select>
           </div>
-          <button class="btn" @click="fetchMessages">Refresh</button>
+          <button class="btn" @click="fetchMessages">Odśwież</button>
         </div>
       </div>
     </div>
 
-    <div v-if="loading" class="empty-state">Loading...</div>
+    <div v-if="loading" class="empty-state">Ładowanie...</div>
     <div v-else-if="error" class="empty-state" style="color: var(--urgent)">{{ error }}</div>
     <div v-else-if="sortedMessages.length === 0" class="empty-state">
-      <p>No messages found</p>
+      <p>Brak zgłoszeń</p>
     </div>
 
     <div v-else class="feed-layout">
@@ -67,41 +67,41 @@
             <span class="badge" :class="`badge-${selected.priority}`">{{ selected.priority }}</span>
             <span class="badge" :class="`badge-${selected.type}`">{{ selected.type }}</span>
           </div>
-          <button class="btn btn-sm btn-danger" @click="handleDelete(selected._id || selected.id)">Delete</button>
+          <button class="btn btn-sm btn-danger" @click="handleDelete(selected._id || selected.id)">Usuń</button>
         </div>
 
         <div class="detail-field">
-          <label>From</label>
+          <label>Od</label>
           <p>{{ selected.sender }}</p>
         </div>
 
         <div class="detail-field">
-          <label>Content</label>
+          <label>Treść</label>
           <p class="detail-content">{{ selected.content }}</p>
         </div>
 
         <div class="detail-meta">
           <div class="detail-field">
-            <label>Follow-ups</label>
+            <label>Ponowienia</label>
             <p>{{ selected.followup_count }}</p>
           </div>
           <div class="detail-field">
-            <label>Received</label>
+            <label>Otrzymano</label>
             <p>{{ formatDate(selected.created_at) }}</p>
           </div>
           <div class="detail-field">
-            <label>Assigned to</label>
-            <p>{{ selected.assigned_to || 'Unassigned' }}</p>
+            <label>Przypisano do</label>
+            <p>{{ selected.assigned_to || 'Nieprzypisane' }}</p>
           </div>
         </div>
 
         <div class="detail-actions">
           <div class="assign-row">
-            <input v-model="assignInput" placeholder="Assign to..." @keyup.enter="handleAssign" />
-            <button class="btn btn-primary btn-sm" @click="handleAssign">Assign</button>
+            <input v-model="assignInput" placeholder="Przypisz do..." @keyup.enter="handleAssign" />
+            <button class="btn btn-primary btn-sm" @click="handleAssign">Przypisz</button>
           </div>
           <div class="priority-row">
-            <label>Change priority</label>
+            <label>Zmień priorytet</label>
             <div class="priority-buttons">
               <button
                 v-for="p in ['low','medium','high','urgent']"
@@ -115,7 +115,7 @@
         </div>
       </div>
       <div class="feed-detail card empty-detail" v-else>
-        <p class="empty-state">Select a message to view details</p>
+        <p class="empty-state">Wybierz wiadomość, aby zobaczyć szczegóły</p>
       </div>
     </div>
   </div>
@@ -123,11 +123,12 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getMessages, updateMessage, deleteMessage } from '../api.js'
+import { storeToRefs } from 'pinia'
+import { useMessagesStore } from '../stores/messages.js'
 
-const messages = ref([])
-const loading = ref(false)
-const error = ref(null)
+const store = useMessagesStore()
+const { loading, error } = storeToRefs(store)
+
 const selected = ref(null)
 const assignInput = ref('')
 const filterPriority = ref('')
@@ -136,35 +137,23 @@ const filterType = ref('')
 const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 }
 
 const sortedMessages = computed(() => {
-  let list = [...messages.value]
+  let list = [...store.messages]
   if (filterPriority.value) list = list.filter(m => m.priority === filterPriority.value)
   if (filterType.value) list = list.filter(m => m.type === filterType.value)
   list.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority])
   return list
 })
 
-const fetchMessages = async () => {
-  loading.value = true
-  error.value = null
-  try {
-    messages.value = await getMessages()
-  } catch (e) {
-    error.value = 'Failed to load messages'
-  } finally {
-    loading.value = false
-  }
-}
+const fetchMessages = () => store.fetch()
 
 const handleAssign = async () => {
   if (!selected.value || !assignInput.value.trim()) return
   const id = selected.value._id || selected.value.id
   try {
-    const updated = await updateMessage(id, { ...selected.value, assigned_to: assignInput.value.trim() })
-    selected.value = updated
+    selected.value = await store.update(id, { ...selected.value, assigned_to: assignInput.value.trim() })
     assignInput.value = ''
-    await fetchMessages()
   } catch (e) {
-    error.value = 'Failed to assign'
+    error.value = 'Nie udało się przypisać'
   }
 }
 
@@ -172,22 +161,19 @@ const handlePriority = async (priority) => {
   if (!selected.value) return
   const id = selected.value._id || selected.value.id
   try {
-    const updated = await updateMessage(id, { ...selected.value, priority })
-    selected.value = updated
-    await fetchMessages()
+    selected.value = await store.update(id, { ...selected.value, priority })
   } catch (e) {
-    error.value = 'Failed to update priority'
+    error.value = 'Nie udało się zmienić priorytetu'
   }
 }
 
 const handleDelete = async (id) => {
-  if (!confirm('Delete this message?')) return
+  if (!confirm('Usunąć tę wiadomość?')) return
   try {
-    await deleteMessage(id)
+    await store.remove(id)
     selected.value = null
-    await fetchMessages()
   } catch (e) {
-    error.value = 'Failed to delete'
+    error.value = 'Nie udało się usunąć'
   }
 }
 
@@ -196,12 +182,12 @@ const truncate = (str, len) => str.length > len ? str.slice(0, len) + '...' : st
 const timeAgo = (dateStr) => {
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
+  if (mins < 1) return 'właśnie'
+  if (mins < 60) return `${mins} min temu`
   const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
+  if (hours < 24) return `${hours} godz. temu`
   const days = Math.floor(hours / 24)
-  return `${days}d ago`
+  return `${days} dni temu`
 }
 
 const formatDate = (dateStr) => new Date(dateStr).toLocaleString()

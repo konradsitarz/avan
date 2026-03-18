@@ -1,20 +1,20 @@
 <template>
   <div class="timeline-page">
     <div class="page-header">
-      <h1 class="page-title">Timeline</h1>
-      <p class="page-subtitle">Chronological message history grouped by sender</p>
+      <h1 class="page-title">Oś czasu</h1>
+      <p class="page-subtitle">Chronologiczna historia wiadomości pogrupowana wg nadawcy</p>
     </div>
 
     <div class="timeline-controls">
-      <input v-model="search" placeholder="Filter by sender..." class="search-input" />
+      <input v-model="search" placeholder="Filtruj po nadawcy..." class="search-input" />
       <select v-model="groupBy">
-        <option value="sender">Group by sender</option>
-        <option value="date">Group by date</option>
-        <option value="none">No grouping</option>
+        <option value="sender">Grupuj wg nadawcy</option>
+        <option value="date">Grupuj wg daty</option>
+        <option value="none">Bez grupowania</option>
       </select>
     </div>
 
-    <div v-if="loading" class="empty-state">Loading...</div>
+    <div v-if="loading" class="empty-state">Ładowanie...</div>
     <div v-else-if="groupBy === 'none'">
       <div class="timeline-track">
         <div v-for="msg in flatFiltered" :key="msg._id || msg.id" class="timeline-entry">
@@ -41,7 +41,7 @@
         <div class="group-header" @click="group.open = !group.open">
           <span class="group-toggle">{{ group.open ? '\u25BC' : '\u25B6' }}</span>
           <span class="group-name">{{ group.key }}</span>
-          <span class="group-count">{{ group.messages.length }} message{{ group.messages.length > 1 ? 's' : '' }}</span>
+          <span class="group-count">{{ group.messages.length }} {{ group.messages.length > 1 ? 'wiadomości' : 'wiadomość' }}</span>
           <span class="badge" :class="`badge-${group.maxPriority}`">{{ group.maxPriority }}</span>
         </div>
         <div v-if="group.open" class="timeline-track">
@@ -68,7 +68,7 @@
       <div v-for="group in dateGroups" :key="group.key" class="timeline-group">
         <div class="group-header">
           <span class="group-name">{{ group.key }}</span>
-          <span class="group-count">{{ group.messages.length }} message{{ group.messages.length > 1 ? 's' : '' }}</span>
+          <span class="group-count">{{ group.messages.length }} {{ group.messages.length > 1 ? 'wiadomości' : 'wiadomość' }}</span>
         </div>
         <div class="timeline-track">
           <div v-for="msg in group.messages" :key="msg._id || msg.id" class="timeline-entry">

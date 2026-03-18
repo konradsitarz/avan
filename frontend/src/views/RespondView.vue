@@ -1,19 +1,19 @@
 <template>
   <div class="respond-page">
     <div class="page-header">
-      <h1 class="page-title">Respond</h1>
-      <p class="page-subtitle">Draft and send responses to messages</p>
+      <h1 class="page-title">Odpowiedzi</h1>
+      <p class="page-subtitle">Twórz i wysyłaj odpowiedzi na zgłoszenia</p>
     </div>
 
     <div class="respond-layout">
       <div class="respond-inbox">
         <div class="inbox-header">
-          <span class="inbox-title">Inbox</span>
+          <span class="inbox-title">Skrzynka</span>
           <select v-model="channelFilter" class="channel-select">
-            <option value="">All channels</option>
+            <option value="">Wszystkie kanały</option>
             <option value="email">Email</option>
             <option value="sms">SMS</option>
-            <option value="voice">Voice</option>
+            <option value="voice">Telefon</option>
           </select>
         </div>
         <div class="inbox-list">
@@ -32,7 +32,7 @@
             <p class="inbox-preview">{{ truncate(msg.content, 80) }}</p>
           </div>
           <div v-if="filteredMessages.length === 0" class="empty-state">
-            <p>No messages</p>
+            <p>Brak wiadomości</p>
           </div>
         </div>
       </div>
@@ -40,11 +40,11 @@
       <div class="respond-compose card" v-if="selected">
         <div class="compose-original">
           <div class="compose-original-header">
-            <span class="compose-label">Original message</span>
+            <span class="compose-label">Oryginalna wiadomość</span>
             <span class="badge" :class="`badge-${selected.priority}`">{{ selected.priority }}</span>
           </div>
           <div class="original-from">
-            <label>From</label>
+            <label>Od</label>
             <span>{{ selected.sender }}</span>
           </div>
           <div class="original-content">
@@ -52,7 +52,7 @@
           </div>
           <div class="original-meta">
             <span>{{ formatDate(selected.created_at) }}</span>
-            <span v-if="selected.followup_count > 0">{{ selected.followup_count }} follow-up(s)</span>
+            <span v-if="selected.followup_count > 0">{{ selected.followup_count }} ponowień</span>
           </div>
         </div>
 
@@ -60,11 +60,11 @@
 
         <div class="compose-form">
           <div class="compose-to">
-            <label>To</label>
+            <label>Do</label>
             <input :value="selected.sender" disabled />
           </div>
           <div class="compose-channel">
-            <label>Reply via</label>
+            <label>Odpowiedz przez</label>
             <div class="channel-options">
               <button
                 v-for="ch in replyChannels"
@@ -76,37 +76,37 @@
             </div>
           </div>
           <div class="compose-body">
-            <label>Response</label>
+            <label>Odpowiedź</label>
             <textarea
               v-model="replyText"
               rows="6"
-              placeholder="Type your response..."
+              placeholder="Wpisz odpowiedź..."
             ></textarea>
           </div>
           <div class="compose-templates">
-            <label>Quick templates</label>
+            <label>Szybkie szablony</label>
             <div class="template-chips">
-              <button class="chip" @click="applyTemplate('ack')">Acknowledge</button>
-              <button class="chip" @click="applyTemplate('escalate')">Escalate</button>
-              <button class="chip" @click="applyTemplate('resolved')">Mark resolved</button>
-              <button class="chip" @click="applyTemplate('info')">Request info</button>
+              <button class="chip" @click="applyTemplate('ack')">Potwierdzenie</button>
+              <button class="chip" @click="applyTemplate('escalate')">Eskalacja</button>
+              <button class="chip" @click="applyTemplate('resolved')">Rozwiązano</button>
+              <button class="chip" @click="applyTemplate('info')">Prośba o info</button>
             </div>
           </div>
           <div class="compose-actions">
-            <button class="btn" @click="clear">Cancel</button>
+            <button class="btn" @click="clear">Anuluj</button>
             <button class="btn btn-primary" @click="sendReply" :disabled="!replyText.trim()">
-              Send Response
+              Wyślij odpowiedź
             </button>
           </div>
         </div>
       </div>
 
       <div class="respond-compose card empty-detail" v-else>
-        <p class="empty-state">Select a message to respond</p>
+        <p class="empty-state">Wybierz wiadomość, aby odpowiedzieć</p>
       </div>
     </div>
 
-    <div v-if="sent" class="toast">Response sent (simulated)</div>
+    <div v-if="sent" class="toast">Odpowiedź wysłana (symulacja)</div>
   </div>
 </template>
 

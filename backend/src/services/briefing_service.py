@@ -34,44 +34,44 @@ class BriefingState(TypedDict):
     issue_briefs: list[dict]
 
 
-SYSTEM_PROMPT = """You are a professional property management concierge assistant.
-You speak in a warm but efficient tone — like a trusted advisor briefing a busy manager
-over morning coffee. Be direct, human, and actionable.
+SYSTEM_PROMPT = """Jesteś profesjonalnym asystentem concierge do zarządzania nieruchomościami.
+Mówisz ciepłym, ale rzeczowym tonem — jak zaufany doradca, który briefuje zapracowanego zarządcę
+przy porannej kawie. Bądź bezpośredni, ludzki i konkretny.
 
-You are based in Eastern Central Europe and manage residential properties.
-Messages from residents may be in Polish — you understand Polish fluently
-but always write your briefings in English.
+Zarządzasz nieruchomościami mieszkalnymi w Polsce.
+Wiadomości od lokatorów są najczęściej po polsku — rozumiesz polski biegle
+i zawsze piszesz briefingi po polsku.
 
-Never use bullet points or lists in the summary. Write in flowing prose, 2-3 sentences max.
-Focus on what matters most and the overall situation."""
+Nigdy nie używaj punktów ani list w podsumowaniu. Pisz płynną prozą, maksymalnie 2-3 zdania.
+Skup się na tym, co najważniejsze i ogólnej sytuacji."""
 
-SUMMARY_PROMPT = """Here are the current active issues across your properties:
+SUMMARY_PROMPT = """Oto aktualne aktywne sprawy na Twoich nieruchomościach:
 
 {messages_text}
 
-Stats: {message_count} total issues, {urgent_count} urgent, {high_count} high priority, {unassigned_count} unassigned.
+Statystyki: {message_count} spraw łącznie, {urgent_count} pilnych, {high_count} o wysokim priorytecie, {unassigned_count} nieprzypisanych.
 
-Write a 2-3 sentence executive briefing for the property manager. Be warm but direct.
-Mention the most critical situation first, then give an overall sense of the workload.
-Do NOT list individual issues — paint the big picture."""
+Napisz 2-3 zdaniowy briefing dla zarządcy nieruchomości. Bądź ciepły, ale bezpośredni.
+Zacznij od najważniejszej sytuacji, potem daj ogólny obraz obciążenia.
+NIE wymieniaj poszczególnych spraw — namaluj ogólny obraz."""
 
-ISSUE_PROMPT = """You are briefing a property manager about this issue.
+ISSUE_PROMPT = """Briefujesz zarządcę nieruchomości na temat tej sprawy.
 
-Sender: {sender}
-Category: {category}
-Overall priority: {priority}
-Assigned to: {assigned_to}
+Nadawca: {sender}
+Kategoria: {category}
+Ogólny priorytet: {priority}
+Przypisano do: {assigned_to}
 
-Message timeline (oldest first):
+Oś czasu wiadomości (od najstarszej):
 {timeline}
 
-Write a 2-3 sentence concierge-style brief about this issue. Explain:
-1. What's happening (synthesize the full thread, not just the latest message)
-2. How it has escalated over time (if multiple messages)
-3. What the manager should do next
+Napisz 2-3 zdaniowy brief w stylu concierge o tej sprawie. Wyjaśnij:
+1. Co się dzieje (podsumuj cały wątek, nie tylko ostatnią wiadomość)
+2. Jak sprawa eskalowała w czasie (jeśli jest wiele wiadomości)
+3. Co zarządca powinien zrobić dalej
 
-Be human and direct. If messages are in Polish, summarize in English.
-Don't repeat metadata — focus on the situation, urgency, and recommended action."""
+Bądź ludzki i bezpośredni. Pisz po polsku.
+Nie powtarzaj metadanych — skup się na sytuacji, pilności i zalecanym działaniu."""
 
 
 # ---------------------------------------------------------------------------
@@ -181,7 +181,7 @@ class BriefingService:
         if not messages:
             result = {
                 "generated_at": now.isoformat(),
-                "summary": "Good news — your inbox is clear. No active issues to report across your properties.",
+                "summary": "Dobra wiadomość — skrzynka jest pusta. Brak aktywnych spraw na Twoich nieruchomościach.",
                 "issues": [],
                 "stats": BriefingService._build_stats(messages),
             }
@@ -373,5 +373,5 @@ class BriefingService:
         n = len(messages)
         urgent = stats["urgent"]
         if urgent > 0:
-            return f"You have {n} active issues, {urgent} of which are urgent and need immediate attention. None of these have been assigned yet — your first priority should be triaging the critical ones."
-        return f"You have {n} active issues across your properties. Nothing critical right now, but there are items that need attention today."
+            return f"Masz {n} aktywnych spraw, z czego {urgent} jest pilnych i wymaga natychmiastowej uwagi. Żadna nie została jeszcze przypisana — priorytetem powinien być triaż krytycznych zgłoszeń."
+        return f"Masz {n} aktywnych spraw na swoich nieruchomościach. Nic krytycznego w tej chwili, ale są sprawy wymagające uwagi dziś."

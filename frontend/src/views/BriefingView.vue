@@ -3,7 +3,7 @@
     <!-- Loading -->
     <div v-if="loading" class="briefing-loading">
       <div class="loading-pulse"></div>
-      <p>Preparing your briefing...</p>
+      <p>Przygotowuję briefing...</p>
     </div>
 
     <div v-else-if="error" class="empty-state" style="color: var(--urgent)">{{ error }}</div>
@@ -17,35 +17,45 @@
         <div class="summary-card">
           <div class="summary-avatar">N</div>
           <div class="summary-body">
-            <div class="summary-label">Your Morning Briefing</div>
+            <div class="summary-label">Poranny briefing</div>
             <p class="summary-text">{{ briefing.summary }}</p>
           </div>
+          <button
+            class="btn-tts"
+            @click="startBriefingReadAloud()"
+            :class="{ playing: ttsPlaying }"
+            :title="ttsPlaying ? 'Zatrzymaj czytanie' : 'Czytaj na głos'"
+          >
+            <span v-if="ttsLoading" class="tts-icon">...</span>
+            <span v-else-if="ttsPlaying" class="tts-icon">&#9632;</span>
+            <span v-else class="tts-icon">&#9654;</span>
+          </button>
         </div>
 
         <div class="stats-row">
           <div class="stat-pill" :class="{ active: briefing.stats.urgent > 0 }">
             <span class="pill-dot dot-urgent"></span>
-            <span>{{ briefing.stats.urgent }} urgent</span>
+            <span>{{ briefing.stats.urgent }} pilnych</span>
           </div>
           <div class="stat-pill">
             <span class="pill-dot dot-high"></span>
-            <span>{{ briefing.stats.high }} high</span>
+            <span>{{ briefing.stats.high }} ważnych</span>
           </div>
           <div class="stat-pill">
             <span class="pill-dot dot-medium"></span>
-            <span>{{ briefing.stats.medium + briefing.stats.low }} routine</span>
+            <span>{{ briefing.stats.medium + briefing.stats.low }} rutynowych</span>
           </div>
           <div class="stat-pill">
-            <span>{{ briefing.stats.unassigned }} unassigned</span>
+            <span>{{ briefing.stats.unassigned }} nieprzypisanych</span>
           </div>
         </div>
 
         <button
           v-if="briefing.issues.length > 0"
           class="btn-begin"
-          @click="beginReview"
+          @click="briefingStore.beginReview()"
         >
-          Review issues one by one
+          Przejrzyj sprawy po kolei
           <span class="btn-count">{{ briefing.issues.length }}</span>
         </button>
       </div>
@@ -53,8 +63,20 @@
       <!-- PHASE 2: Issue-by-issue review -->
       <div v-if="phase === 'review'" class="phase-review">
         <div class="review-nav">
-          <button class="btn btn-sm" @click="phase = 'summary'">Back to briefing</button>
-          <span class="review-progress">{{ currentIndex + 1 }} of {{ briefing.issues.length }}</span>
+          <button class="btn btn-sm" @click="briefingStore.backToSummary()">Wróć do briefingu</button>
+          <span class="review-progress">{{ currentIndex + 1 }} z {{ briefing.issues.length }}</span>
+          <button
+            v-if="!ttsPlaying"
+            class="btn btn-sm btn-tts-flow"
+            @click="startFlowFromCurrent()"
+            title="Czytaj od tej sprawy"
+          >&#9654; Czytaj</button>
+          <button
+            v-else
+            class="btn btn-sm btn-tts-flow playing"
+            @click="stopTTS()"
+            title="Zatrzymaj czytanie"
+          >&#9632; Stop</button>
           <div class="review-dots">
             <span
               v-for="(issue, idx) in briefing.issues"
@@ -74,13 +96,13 @@
             <span class="badge badge-category" v-if="currentIssue.category">{{ currentIssue.category }}</span>
             <span class="badge" :class="`badge-${currentIssue.type}`">{{ currentIssue.type }}</span>
             <span class="issue-msg-count" v-if="currentIssue.message_count > 1">
-              {{ currentIssue.message_count }} messages
+              {{ currentIssue.message_count }} wiadomości
             </span>
             <span class="issue-time">{{ currentIssue.time_label }}</span>
           </div>
 
           <div class="issue-from">
-            <label>From</label>
+            <label>Od</label>
             <span>{{ currentIssue.sender }}</span>
           </div>
 
@@ -92,13 +114,13 @@
 
           <!-- Triage reasoning -->
           <div v-if="currentIssue.action_reason" class="issue-reasoning">
-            <label>Triage reasoning</label>
+            <label>Uzasadnienie triażu</label>
             <p>{{ currentIssue.action_reason }}</p>
           </div>
 
           <!-- Timeline -->
           <div class="issue-timeline" v-if="currentIssue.timeline && currentIssue.timeline.length > 0">
-            <label>Timeline</label>
+            <label>Oś czasu</label>
             <div class="timeline-list">
               <div
                 v-for="(entry, idx) in currentIssue.timeline"
@@ -120,74 +142,119 @@
             </div>
           </div>
 
-          <div class="issue-details">
-            <div class="detail-item" v-if="currentIssue.followup_count > 0">
-              <label>Follow-ups</label>
+          <div class="issue-details" v-if="currentIssue.followup_count > 0">
+            <div class="detail-item">
+              <label>Ponowienia</label>
               <span class="followup-count">{{ currentIssue.followup_count }}x</span>
             </div>
-            <div class="detail-item">
-              <label>Assigned to</label>
-              <span :class="{ unassigned: !currentIssue.assigned_to }">
-                {{ currentIssue.assigned_to || 'Nobody' }}
-              </span>
+          </div>
+
+          <!-- Actions menu -->
+          <div class="issue-quick-actions">
+            <button class="action-btn action-primary" @click="showActions = !showActions">
+              {{ showActions ? 'Zamknij' : 'Akcje' }}
+            </button>
+            <div v-if="showActions" class="actions-menu">
+              <button class="action-menu-item" @click="callSender(currentIssue)">
+                <span class="action-icon">&#128222;</span>
+                <div class="action-info">
+                  <span class="action-name">Zadzwoń do nadawcy</span>
+                  <span class="action-desc">Połącz z {{ currentIssue.sender }}</span>
+                </div>
+              </button>
+              <button class="action-menu-item" @click="escalateIssue(currentIssue)">
+                <span class="action-icon">&#9888;</span>
+                <div class="action-info">
+                  <span class="action-name">Eskaluj do pilnego</span>
+                  <span class="action-desc">Zmień priorytet na PILNY i powiadom zespół</span>
+                </div>
+              </button>
+              <button class="action-menu-item" @click="scheduleVisit(currentIssue)">
+                <span class="action-icon">&#128197;</span>
+                <div class="action-info">
+                  <span class="action-name">Zaplanuj wizytę</span>
+                  <span class="action-desc">Umów oględziny na miejscu</span>
+                </div>
+              </button>
+              <button class="action-menu-item" @click="assignToTechnician(currentIssue)">
+                <span class="action-icon">&#128736;</span>
+                <div class="action-info">
+                  <span class="action-name">Przypisz do technika</span>
+                  <span class="action-desc">Wyślij zlecenie do serwisu</span>
+                </div>
+              </button>
+              <button class="action-menu-item" @click="sendAcknowledgment(currentIssue)">
+                <span class="action-icon">&#9993;</span>
+                <div class="action-info">
+                  <span class="action-name">Wyślij potwierdzenie</span>
+                  <span class="action-desc">Poinformuj nadawcę, że sprawa jest w toku</span>
+                </div>
+              </button>
+              <button class="action-menu-item" @click="markResolved(currentIssue)">
+                <span class="action-icon">&#10003;</span>
+                <div class="action-info">
+                  <span class="action-name">Oznacz jako rozwiązane</span>
+                  <span class="action-desc">Zamknij sprawę i powiadom nadawcę</span>
+                </div>
+              </button>
             </div>
           </div>
 
           <!-- Override controls -->
           <div class="issue-override">
             <button class="btn btn-sm" @click="showOverride = !showOverride">
-              {{ showOverride ? 'Cancel override' : 'Override triage' }}
+              {{ showOverride ? 'Anuluj zmianę' : 'Zmień triaż' }}
             </button>
             <div v-if="showOverride" class="override-form">
               <div class="override-row">
-                <label>Priority</label>
+                <label>Priorytet</label>
                 <select v-model="overrideData.priority">
-                  <option value="">keep</option>
-                  <option value="low">low</option>
-                  <option value="medium">medium</option>
-                  <option value="high">high</option>
-                  <option value="urgent">urgent</option>
+                  <option value="">bez zmian</option>
+                  <option value="low">niski</option>
+                  <option value="medium">średni</option>
+                  <option value="high">wysoki</option>
+                  <option value="urgent">pilny</option>
                 </select>
               </div>
               <div class="override-row">
-                <label>Category</label>
+                <label>Kategoria</label>
                 <select v-model="overrideData.category">
-                  <option value="">keep</option>
-                  <option value="safety">safety</option>
-                  <option value="plumbing">plumbing</option>
-                  <option value="electrical">electrical</option>
-                  <option value="noise">noise</option>
-                  <option value="maintenance">maintenance</option>
-                  <option value="billing">billing</option>
-                  <option value="access">access</option>
-                  <option value="compliance">compliance</option>
-                  <option value="other">other</option>
+                  <option value="">bez zmian</option>
+                  <option value="safety">bezpieczeństwo</option>
+                  <option value="plumbing">hydraulika</option>
+                  <option value="electrical">elektryka</option>
+                  <option value="noise">hałas</option>
+                  <option value="maintenance">konserwacja</option>
+                  <option value="billing">rozliczenia</option>
+                  <option value="access">dostęp</option>
+                  <option value="compliance">regulamin</option>
+                  <option value="other">inne</option>
                 </select>
               </div>
               <div class="override-row">
-                <label>Reason</label>
-                <input v-model="overrideData.reason" placeholder="Why are you overriding?" />
+                <label>Powód</label>
+                <input v-model="overrideData.reason" placeholder="Dlaczego zmieniasz triaż?" />
               </div>
               <button class="btn btn-primary btn-sm" @click="submitOverride" :disabled="overrideLoading">
-                {{ overrideLoading ? 'Saving...' : 'Save override' }}
+                {{ overrideLoading ? 'Zapisuję...' : 'Zapisz zmianę' }}
               </button>
-              <span v-if="overrideSaved" class="override-saved">Saved — will improve future triage</span>
+              <span v-if="overrideSaved" class="override-saved">Zapisano — poprawi przyszły triaż</span>
             </div>
           </div>
 
-          <!-- Quick actions -->
+          <!-- Navigation actions -->
           <div class="issue-actions">
-            <button class="btn btn-sm" @click="prevIssue" :disabled="currentIndex === 0">Previous</button>
+            <button class="btn btn-sm" @click="briefingStore.prevIssue()" :disabled="currentIndex === 0">Poprzednia</button>
             <button
               class="btn btn-primary btn-sm"
-              @click="nextIssue"
+              @click="briefingStore.nextIssue()"
               v-if="currentIndex < briefing.issues.length - 1"
-            >Next issue</button>
+            >Następna sprawa</button>
             <button
               class="btn btn-primary btn-sm"
-              @click="phase = 'done'"
+              @click="briefingStore.finishReview()"
               v-else
-            >Finish review</button>
+            >Zakończ przegląd</button>
           </div>
         </div>
       </div>
@@ -196,11 +263,11 @@
       <div v-if="phase === 'done'" class="phase-done">
         <div class="done-card">
           <div class="done-icon">&#10003;</div>
-          <h2>Briefing complete</h2>
-          <p>You've reviewed all {{ briefing.issues.length }} issues.</p>
+          <h2>Briefing zakończony</h2>
+          <p>Przejrzano wszystkie {{ briefing.issues.length }} sprawy.</p>
           <div class="done-actions">
-            <button class="btn" @click="phase = 'summary'">Back to summary</button>
-            <router-link to="/feed" class="btn btn-primary">Open full feed</router-link>
+            <button class="btn" @click="briefingStore.backToSummary()">Wróć do podsumowania</button>
+            <router-link to="/feed" class="btn btn-primary">Otwórz zgłoszenia</router-link>
           </div>
         </div>
       </div>
@@ -210,16 +277,146 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { getBriefing, overrideMessage } from '../api.js'
+import { ref, reactive, onMounted, onUnmounted, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useBriefingStore } from '../stores/briefing.js'
+import { useMessagesStore } from '../stores/messages.js'
+import { textToSpeech } from '../api.js'
 
-const briefing = ref(null)
-const loading = ref(false)
-const error = ref(null)
-const phase = ref('summary') // summary | review | done
-const currentIndex = ref(0)
+const briefingStore = useBriefingStore()
+const messagesStore = useMessagesStore()
+const { data: briefing, loading, error, phase, currentIndex, currentIssue } = storeToRefs(briefingStore)
 
-// Override state
+// TTS state — continuous flow mode
+const ttsPlaying = ref(false)
+const ttsLoading = ref(false)
+let ttsAudio = null
+let ttsFlowActive = false  // when true, auto-reads next issue on finish
+
+const playText = async (text, onEnded) => {
+  if (!text) { onEnded?.(); return }
+  ttsLoading.value = true
+  try {
+    const blob = await textToSpeech(text)
+    const url = URL.createObjectURL(blob)
+    ttsAudio = new Audio(url)
+    ttsAudio.onended = () => {
+      ttsPlaying.value = false
+      URL.revokeObjectURL(url)
+      onEnded?.()
+    }
+    ttsAudio.play()
+    ttsPlaying.value = true
+  } catch (e) {
+    console.error('TTS failed:', e)
+    ttsPlaying.value = false
+    onEnded?.()
+  } finally {
+    ttsLoading.value = false
+  }
+}
+
+const stopTTS = () => {
+  ttsFlowActive = false
+  if (ttsAudio) {
+    ttsAudio.pause()
+    ttsAudio.currentTime = 0
+    ttsAudio = null
+  }
+  ttsPlaying.value = false
+}
+
+// Start reading the full briefing: summary → then each issue in flow
+const startBriefingReadAloud = () => {
+  if (ttsPlaying.value) { stopTTS(); return }
+  ttsFlowActive = true
+  playText(briefing.value.summary, () => {
+    if (!ttsFlowActive || !briefing.value?.issues?.length) return
+    // After summary, enter review and start reading issues
+    briefingStore.beginReview()
+    readCurrentIssue()
+  })
+}
+
+// Start reading from the current issue in flow mode
+const startFlowFromCurrent = () => {
+  if (ttsPlaying.value) { stopTTS(); return }
+  ttsFlowActive = true
+  readCurrentIssue()
+}
+
+const readCurrentIssue = () => {
+  if (!ttsFlowActive) return
+  const issue = briefing.value?.issues?.[currentIndex.value]
+  if (!issue) { ttsFlowActive = false; return }
+  const text = issue.llm_brief || issue.content
+  playText(text, () => {
+    if (!ttsFlowActive) return
+    // Auto-advance to next issue
+    if (currentIndex.value < briefing.value.issues.length - 1) {
+      briefingStore.nextIssue()
+      // Small delay before reading next issue
+      setTimeout(() => readCurrentIssue(), 500)
+    } else {
+      // All done
+      ttsFlowActive = false
+      briefingStore.finishReview()
+    }
+  })
+}
+
+// Stop TTS when user manually switches issues or goes back to summary
+watch(phase, (newPhase, oldPhase) => {
+  // Only stop if user navigated away (not our auto-advance)
+  if (!ttsFlowActive) stopTTS()
+})
+
+// If user manually clicks a dot or prev/next while flow is not active, stop
+watch(currentIndex, () => {
+  if (!ttsFlowActive) stopTTS()
+})
+
+// Actions menu
+const showActions = ref(false)
+
+// Reset actions menu when switching issues
+watch(currentIndex, () => { showActions.value = false })
+
+// Action handlers
+const callSender = (issue) => {
+  showActions.value = false
+  alert(`Dzwonię do ${issue.sender}...`)
+}
+
+const escalateIssue = (issue) => {
+  showActions.value = false
+  messagesStore.override(issue.id, { priority: 'urgent' })
+  briefingStore.updateCurrentIssue({ priority: 'urgent' })
+}
+
+const scheduleVisit = (issue) => {
+  showActions.value = false
+  alert(`Zaplanuj wizytę: ${issue.sender} — ${issue.category || 'ogólne'}`)
+}
+
+const assignToTechnician = (issue) => {
+  showActions.value = false
+  alert(`Przypisz do technika: ${issue.sender} — ${issue.category || 'ogólne'}`)
+}
+
+const sendAcknowledgment = (issue) => {
+  showActions.value = false
+  alert(`Wysłano potwierdzenie do: ${issue.sender}`)
+}
+
+const markResolved = (issue) => {
+  showActions.value = false
+  alert(`Oznaczono jako rozwiązane: ${issue.sender} — ${issue.category || 'ogólne'}`)
+}
+
+onUnmounted(() => stopTTS())
+
+// Override state (local to this view)
 const showOverride = ref(false)
 const overrideLoading = ref(false)
 const overrideSaved = ref(false)
@@ -228,40 +425,6 @@ const overrideData = reactive({
   category: '',
   reason: '',
 })
-
-const currentIssue = computed(() => {
-  if (!briefing.value || !briefing.value.issues.length) return null
-  return briefing.value.issues[currentIndex.value]
-})
-
-const fetchBriefing = async () => {
-  loading.value = true
-  error.value = null
-  try {
-    briefing.value = await getBriefing()
-  } catch (e) {
-    error.value = 'Failed to generate briefing'
-  } finally {
-    loading.value = false
-  }
-}
-
-const beginReview = () => {
-  currentIndex.value = 0
-  phase.value = 'review'
-}
-
-const nextIssue = () => {
-  if (currentIndex.value < briefing.value.issues.length - 1) {
-    currentIndex.value++
-  }
-}
-
-const prevIssue = () => {
-  if (currentIndex.value > 0) {
-    currentIndex.value--
-  }
-}
 
 // Reset override form when switching issues
 watch(currentIndex, () => {
@@ -281,10 +444,8 @@ const submitOverride = async () => {
     if (overrideData.priority) payload.priority = overrideData.priority
     if (overrideData.category) payload.category = overrideData.category
     if (overrideData.reason) payload.reason = overrideData.reason
-    const updated = await overrideMessage(currentIssue.value.id, payload)
-    // Update the issue in place
-    if (overrideData.priority) currentIssue.value.priority = overrideData.priority
-    if (overrideData.category) currentIssue.value.category = overrideData.category
+    await messagesStore.override(currentIssue.value.id, payload)
+    briefingStore.updateCurrentIssue(payload)
     overrideSaved.value = true
   } catch (e) {
     // ignore
@@ -295,10 +456,10 @@ const submitOverride = async () => {
 
 const formatDate = (dateStr) => {
   const d = new Date(dateStr)
-  return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  return d.toLocaleDateString('pl-PL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 }
 
-onMounted(fetchBriefing)
+onMounted(() => briefingStore.fetch())
 </script>
 
 <style scoped>
@@ -463,6 +624,19 @@ onMounted(fetchBriefing)
   font-weight: 600;
 }
 
+.btn-tts-flow {
+  font-size: 12px;
+  padding: 4px 12px;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-tts-flow.playing {
+  background: rgba(88, 166, 255, 0.12);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .review-dots {
   display: flex;
   gap: 4px;
@@ -562,25 +736,6 @@ onMounted(fetchBriefing)
   font-size: 14px;
   line-height: 1.7;
   color: var(--text-primary);
-}
-
-/* Original message */
-.issue-original {
-  padding: 0 24px;
-  margin-bottom: 16px;
-}
-
-.issue-original p {
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.6;
-  white-space: pre-wrap;
-  padding: 12px;
-  background: var(--bg-primary);
-  border-radius: 8px;
-  margin-top: 6px;
-  max-height: 200px;
-  overflow-y: auto;
 }
 
 /* Message count badge */
@@ -719,8 +874,129 @@ onMounted(fetchBriefing)
   font-weight: 700 !important;
 }
 
-.unassigned {
-  color: var(--urgent) !important;
+/* Quick action buttons */
+.issue-quick-actions {
+  display: flex;
+  gap: 8px;
+  padding: 14px 24px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.action-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+
+.action-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(88, 166, 255, 0.06);
+}
+
+.action-primary {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.actions-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  margin-top: 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 6px;
+  animation: menuSlide 0.15s ease-out;
+}
+
+@keyframes menuSlide {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.action-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.1s;
+  text-align: left;
+  width: 100%;
+}
+
+.action-menu-item:hover {
+  background: var(--bg-hover);
+}
+
+.action-icon {
+  font-size: 18px;
+  width: 28px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.action-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.action-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.action-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* TTS button on summary */
+.btn-tts {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.btn-tts:hover {
+  border-color: var(--accent);
+  background: rgba(88, 166, 255, 0.08);
+}
+
+.btn-tts.playing {
+  background: rgba(88, 166, 255, 0.15);
+  border-color: var(--accent);
+}
+
+.tts-icon {
+  font-size: 14px;
+  color: var(--accent);
+  line-height: 1;
 }
 
 /* Override */

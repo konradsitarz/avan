@@ -2,7 +2,7 @@
   <!-- Toggle tab — always visible at bottom -->
   <button class="firebar-toggle" :class="{ open: isOpen }" @click="isOpen = !isOpen">
     <span class="toggle-icon">{{ isOpen ? '&#9660;' : '&#9650;' }}</span>
-    <span class="toggle-label">Simulation</span>
+    <span class="toggle-label">Symulacja</span>
   </button>
 
   <div class="firebar" :class="{ collapsed: !isOpen }">
@@ -82,10 +82,10 @@
     </div>
 
     <div class="firebar-right">
-      <button class="fire-btn" @click="fireSingle" :disabled="currentIndex >= magazine.length" title="Fire single">
+      <button class="fire-btn" @click="fireSingle" :disabled="currentIndex >= magazine.length" title="Wyślij jedną">
         <span class="fire-icon">&#9658;</span>
       </button>
-      <button class="fire-btn burst-btn" @click="fireBurst" :disabled="currentIndex >= magazine.length" title="Burst (3 rounds)">
+      <button class="fire-btn burst-btn" @click="fireBurst" :disabled="currentIndex >= magazine.length" title="Seria (3 sztuki)">
         <span class="fire-icon">&#9658;&#9658;&#9658;</span>
       </button>
       <button
@@ -93,7 +93,7 @@
         :class="{ active: autoFiring }"
         @click="toggleAuto"
         :disabled="currentIndex >= magazine.length && !autoFiring"
-        title="Auto-fire"
+        title="Auto-wysyłanie"
       >
         <span class="fire-icon">{{ autoFiring ? '&#9632;' : '&#8634;' }}</span>
       </button>
@@ -101,16 +101,16 @@
         <label>{{ fireRate }}ms</label>
         <input type="range" min="500" max="5000" step="100" v-model.number="fireRate" />
       </div>
-      <button class="fire-btn reload-btn" @click="reload" title="Reload magazine">
+      <button class="fire-btn reload-btn" @click="reload" title="Przeładuj magazynek">
         <span class="fire-icon">&#8635;</span>
       </button>
-      <button class="fire-btn clear-btn" @click="clearAll" title="Clear all messages">
+      <button class="fire-btn clear-btn" @click="clearAll" title="Wyczyść wszystkie wiadomości">
         <span class="fire-icon">&#10005;</span>
       </button>
     </div>
 
     <div class="firebar-compose" :class="{ expanded: composeOpen }">
-      <button class="fire-btn compose-toggle" @click="composeOpen = !composeOpen" title="Send custom message">
+      <button class="fire-btn compose-toggle" @click="composeOpen = !composeOpen" title="Wyślij własną wiadomość">
         <span class="fire-icon">&#9998;</span>
       </button>
       <div v-if="composeOpen" class="compose-form">
@@ -122,12 +122,12 @@
         <input
           v-model="customMsg.sender"
           class="compose-input compose-sender"
-          placeholder="Sender"
+          placeholder="Nadawca"
         />
         <input
           v-model="customMsg.content"
           class="compose-input compose-content"
-          placeholder="Message content..."
+          placeholder="Treść wiadomości..."
           @keyup.enter="sendCustom"
         />
         <input
@@ -136,7 +136,7 @@
           type="number"
           min="0"
           placeholder="#"
-          title="Follow-up count"
+          title="Liczba ponowień"
         />
         <button class="fire-btn" @click="sendCustom" :disabled="!customMsg.content || sending">
           <span class="fire-icon">&#9658;</span>
@@ -156,7 +156,9 @@
 
 <script setup>
 import { ref, reactive, onUnmounted, computed } from 'vue'
-import { createMessage, deleteAllMessages } from '../api.js'
+import { useMessagesStore } from '../stores/messages.js'
+
+const messagesStore = useMessagesStore()
 
 const isOpen = ref(false)
 const composeOpen = ref(false)
@@ -172,7 +174,7 @@ const sendCustom = async () => {
   if (!customMsg.content || sending.value) return
   sending.value = true
   try {
-    const result = await createMessage({
+    const result = await messagesStore.create({
       type: customMsg.type,
       sender: customMsg.sender || 'test@simulation.local',
       content: customMsg.content,
@@ -300,7 +302,7 @@ const fireSingle = async () => {
 
 const sendToApi = async (msg, round, roundId) => {
   try {
-    const result = await createMessage(msg)
+    const result = await messagesStore.create(msg)
     const classified = result.priority || 'medium'
     round.priority = classified
     round.phase = 'classified'
@@ -370,7 +372,7 @@ const reload = () => {
 
 const clearAll = async () => {
   try {
-    await deleteAllMessages()
+    await messagesStore.clearAll()
   } catch (e) {
     // ignore — best effort
   }

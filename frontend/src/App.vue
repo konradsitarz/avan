@@ -5,7 +5,7 @@
         <div class="brand-icon">N</div>
         <div class="brand-text">
           <span class="brand-name">Nava</span>
-          <span class="brand-sub">Admin Panel</span>
+          <span class="brand-sub">Panel zarządzania</span>
         </div>
       </div>
 
@@ -16,19 +16,19 @@
         </router-link>
         <router-link to="/feed" class="nav-item" active-class="active">
           <span class="nav-icon">&#9888;</span>
-          <span>Feed</span>
+          <span>Zgłoszenia</span>
         </router-link>
         <router-link to="/timeline" class="nav-item" active-class="active">
           <span class="nav-icon">&#128339;</span>
-          <span>Timeline</span>
+          <span>Oś czasu</span>
         </router-link>
         <router-link to="/respond" class="nav-item" active-class="active">
           <span class="nav-icon">&#9993;</span>
-          <span>Respond</span>
+          <span>Odpowiedzi</span>
         </router-link>
         <router-link to="/rules" class="nav-item" active-class="active">
           <span class="nav-icon">&#9881;</span>
-          <span>System Learning</span>
+          <span>Reguły</span>
         </router-link>
       </nav>
 

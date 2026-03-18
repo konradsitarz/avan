@@ -3,37 +3,37 @@
     <div class="page-header">
       <div class="header-row">
         <div>
-          <h1 class="page-title">System Learning</h1>
-          <p class="page-subtitle">Manage escalation rules and automation</p>
+          <h1 class="page-title">Reguły</h1>
+          <p class="page-subtitle">Zarządzaj regułami eskalacji i automatyzacji</p>
         </div>
         <button class="btn btn-primary" @click="showForm = !showForm">
-          {{ showForm ? 'Cancel' : '+ New Rule' }}
+          {{ showForm ? 'Anuluj' : '+ Nowa reguła' }}
         </button>
       </div>
     </div>
 
     <!-- Create / edit form -->
     <div v-if="showForm" class="rule-form card">
-      <h3 class="form-title">{{ editing ? 'Edit Rule' : 'Create Rule' }}</h3>
+      <h3 class="form-title">{{ editing ? 'Edytuj regułę' : 'Utwórz regułę' }}</h3>
       <div class="form-grid">
         <div class="form-field span-2">
-          <label>Rule name</label>
-          <input v-model="form.name" placeholder="e.g. Auto-escalate repeat complaints" />
+          <label>Nazwa reguły</label>
+          <input v-model="form.name" placeholder="np. Auto-eskalacja powtarzających się skarg" />
         </div>
         <div class="form-field span-2">
-          <label>Description</label>
-          <input v-model="form.description" placeholder="What this rule does..." />
+          <label>Opis</label>
+          <input v-model="form.description" placeholder="Co robi ta reguła..." />
         </div>
 
-        <div class="form-section-label">When...</div>
+        <div class="form-section-label">Gdy...</div>
         <div class="form-field">
-          <label>Field</label>
+          <label>Pole</label>
           <select v-model="form.condition_field">
-            <option value="followup_count">Follow-up count</option>
-            <option value="priority">Priority</option>
-            <option value="type">Channel type</option>
-            <option value="content">Content</option>
-            <option value="sender">Sender</option>
+            <option value="followup_count">Liczba ponowień</option>
+            <option value="priority">Priorytet</option>
+            <option value="type">Typ kanału</option>
+            <option value="content">Treść</option>
+            <option value="sender">Nadawca</option>
           </select>
         </div>
         <div class="form-field">
@@ -41,68 +41,68 @@
           <select v-model="form.condition_operator">
             <option value="gte">>=</option>
             <option value="lte">&lt;=</option>
-            <option value="eq">equals</option>
-            <option value="contains">contains</option>
+            <option value="eq">równa się</option>
+            <option value="contains">zawiera</option>
           </select>
         </div>
         <div class="form-field">
-          <label>Value</label>
-          <input v-model="form.condition_value" placeholder="e.g. 3, urgent, water" />
+          <label>Wartość</label>
+          <input v-model="form.condition_value" placeholder="np. 3, urgent, woda" />
         </div>
 
-        <div class="form-section-label">Then...</div>
+        <div class="form-section-label">Wtedy...</div>
         <div class="form-field">
-          <label>Action</label>
+          <label>Akcja</label>
           <select v-model="form.action">
-            <option value="set_priority">Set priority</option>
-            <option value="assign_to">Assign to</option>
-            <option value="notify_admin">Notify admin</option>
-            <option value="auto_respond">Auto-respond</option>
+            <option value="set_priority">Ustaw priorytet</option>
+            <option value="assign_to">Przypisz do</option>
+            <option value="notify_admin">Powiadom admina</option>
+            <option value="auto_respond">Automatyczna odpowiedź</option>
           </select>
         </div>
         <div class="form-field span-2">
-          <label>Action value</label>
+          <label>Wartość akcji</label>
           <input v-model="form.action_value" :placeholder="actionPlaceholder" />
         </div>
 
         <div class="form-field">
-          <label>Enabled</label>
+          <label>Status</label>
           <label class="toggle-label">
             <input type="checkbox" v-model="form.enabled" class="toggle-input" />
             <span class="toggle-switch"></span>
-            <span>{{ form.enabled ? 'Active' : 'Disabled' }}</span>
+            <span>{{ form.enabled ? 'Aktywna' : 'Wyłączona' }}</span>
           </label>
         </div>
       </div>
       <div class="form-actions">
-        <button class="btn" @click="cancelForm">Cancel</button>
+        <button class="btn" @click="cancelForm">Anuluj</button>
         <button class="btn btn-primary" @click="saveRule" :disabled="!form.name || !form.condition_value || !form.action_value">
-          {{ editing ? 'Update' : 'Create' }}
+          {{ editing ? 'Zapisz' : 'Utwórz' }}
         </button>
       </div>
     </div>
 
     <!-- Default rules info -->
     <div class="built-in card">
-      <h3 class="section-title">Built-in Rules</h3>
+      <h3 class="section-title">Wbudowane reguły</h3>
       <div class="built-in-rule">
         <div class="rule-indicator active"></div>
         <div>
-          <span class="rule-name">Auto-escalation on follow-ups</span>
-          <p class="rule-desc">Messages with follow_up count >= 3 are automatically escalated to URGENT priority</p>
+          <span class="rule-name">Auto-eskalacja przy ponowieniach</span>
+          <p class="rule-desc">Wiadomości z liczbą ponowień >= 3 są automatycznie eskalowane do priorytetu PILNE</p>
         </div>
-        <span class="badge badge-urgent">Always active</span>
+        <span class="badge badge-urgent">Zawsze aktywna</span>
       </div>
     </div>
 
     <!-- Custom rules -->
     <div class="section-header">
-      <h3 class="section-title">Custom Rules</h3>
-      <span class="rule-count">{{ rules.length }} rule{{ rules.length !== 1 ? 's' : '' }}</span>
+      <h3 class="section-title">Własne reguły</h3>
+      <span class="rule-count">{{ rules.length }} {{ rules.length === 1 ? 'reguła' : 'reguł' }}</span>
     </div>
 
     <div v-if="rules.length === 0" class="empty-state card" style="padding: 32px;">
-      <p>No custom rules yet. Create one to automate message handling.</p>
+      <p>Brak własnych reguł. Utwórz regułę, aby zautomatyzować obsługę zgłoszeń.</p>
     </div>
 
     <div v-else class="rules-list">
@@ -114,8 +114,8 @@
             <p class="rule-desc">{{ rule.description }}</p>
           </div>
           <div class="rule-actions">
-            <button class="btn btn-sm" @click="editRule(rule)">Edit</button>
-            <button class="btn btn-sm btn-danger" @click="handleDelete(rule._id || rule.id)">Delete</button>
+            <button class="btn btn-sm" @click="editRule(rule)">Edytuj</button>
+            <button class="btn btn-sm btn-danger" @click="handleDelete(rule._id || rule.id)">Usuń</button>
           </div>
         </div>
         <div class="rule-logic">
@@ -160,10 +160,10 @@ const form = ref(emptyForm())
 
 const actionPlaceholder = computed(() => {
   const map = {
-    set_priority: 'e.g. urgent, high',
-    assign_to: 'e.g. jan.kowalski',
-    notify_admin: 'e.g. admin@nava.pl',
-    auto_respond: 'Response text...',
+    set_priority: 'np. urgent, high',
+    assign_to: 'np. jan.kowalski',
+    notify_admin: 'np. admin@nava.pl',
+    auto_respond: 'Treść odpowiedzi...',
   }
   return map[form.value.action] || ''
 })
@@ -191,7 +191,7 @@ const editRule = (rule) => {
 }
 
 const handleDelete = async (id) => {
-  if (!confirm('Delete this rule?')) return
+  if (!confirm('Usunąć tę regułę?')) return
   try {
     await deleteRule(id)
     await fetchRules()
@@ -204,8 +204,8 @@ const cancelForm = () => {
   form.value = emptyForm()
 }
 
-const operatorLabel = (op) => ({ gte: '>=', lte: '<=', eq: '=', contains: 'contains' }[op] || op)
-const actionLabel = (a) => ({ set_priority: 'Set priority', assign_to: 'Assign to', notify_admin: 'Notify admin', auto_respond: 'Auto-respond' }[a] || a)
+const operatorLabel = (op) => ({ gte: '>=', lte: '<=', eq: '=', contains: 'zawiera' }[op] || op)
+const actionLabel = (a) => ({ set_priority: 'Ustaw priorytet', assign_to: 'Przypisz do', notify_admin: 'Powiadom admina', auto_respond: 'Auto-odpowiedź' }[a] || a)
 
 onMounted(fetchRules)
 </script>
