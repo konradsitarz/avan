@@ -52,8 +52,8 @@
             </div>
             <p class="feed-content">{{ truncate(msg.content, 100) }}</p>
             <div class="feed-item-tags">
-              <span class="badge" :class="`badge-${msg.priority}`">{{ msg.priority }}</span>
-              <span class="badge" :class="`badge-${msg.type}`">{{ msg.type }}</span>
+              <span class="badge" :class="`badge-${msg.priority}`">{{ label(priorityLabels, msg.priority) }}</span>
+              <span class="badge" :class="`badge-${msg.type}`">{{ label(channelLabels, msg.type) }}</span>
               <span v-if="msg.followup_count > 0" class="badge badge-high">{{ msg.followup_count }}x follow-up</span>
               <span v-if="msg.assigned_to" class="feed-assigned">{{ msg.assigned_to }}</span>
             </div>
@@ -64,8 +64,8 @@
       <div class="feed-detail card" v-if="selected">
         <div class="detail-header">
           <div class="detail-badges">
-            <span class="badge" :class="`badge-${selected.priority}`">{{ selected.priority }}</span>
-            <span class="badge" :class="`badge-${selected.type}`">{{ selected.type }}</span>
+            <span class="badge" :class="`badge-${selected.priority}`">{{ label(priorityLabels, selected.priority) }}</span>
+            <span class="badge" :class="`badge-${selected.type}`">{{ label(channelLabels, selected.type) }}</span>
           </div>
           <button class="btn btn-sm btn-danger" @click="handleDelete(selected._id || selected.id)">Usuń</button>
         </div>
@@ -109,7 +109,7 @@
                 class="btn btn-sm"
                 :class="{ 'btn-primary': selected.priority === p }"
                 @click="handlePriority(p)"
-              >{{ p }}</button>
+              >{{ label(priorityLabels, p) }}</button>
             </div>
           </div>
         </div>
@@ -125,6 +125,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMessagesStore } from '../stores/messages.js'
+import { priorityLabels, categoryLabels, channelLabels, label } from '../labels.js'
 
 const store = useMessagesStore()
 const { loading, error } = storeToRefs(store)

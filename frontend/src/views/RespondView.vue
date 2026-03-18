@@ -27,7 +27,7 @@
             <div class="inbox-item-row">
               <div class="priority-dot" :class="`dot-${msg.priority}`"></div>
               <span class="inbox-sender">{{ msg.sender }}</span>
-              <span class="badge" :class="`badge-${msg.type}`">{{ msg.type }}</span>
+              <span class="badge" :class="`badge-${msg.type}`">{{ label(channelLabels, msg.type) }}</span>
             </div>
             <p class="inbox-preview">{{ truncate(msg.content, 80) }}</p>
           </div>
@@ -41,7 +41,7 @@
         <div class="compose-original">
           <div class="compose-original-header">
             <span class="compose-label">Oryginalna wiadomość</span>
-            <span class="badge" :class="`badge-${selected.priority}`">{{ selected.priority }}</span>
+            <span class="badge" :class="`badge-${selected.priority}`">{{ label(priorityLabels, selected.priority) }}</span>
           </div>
           <div class="original-from">
             <label>Od</label>
@@ -118,6 +118,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { getMessages, generateReply } from '../api.js'
+import { priorityLabels, channelLabels, label } from '../labels.js'
 
 const route = useRoute()
 

@@ -92,10 +92,10 @@
           <div class="issue-priority-bar" :class="`bar-${currentIssue.priority}`"></div>
 
           <div class="issue-meta">
-            <span class="badge" :class="`badge-${currentIssue.priority}`">{{ currentIssue.priority }}</span>
+            <span class="badge" :class="`badge-${currentIssue.priority}`">{{ label(priorityLabels, currentIssue.priority) }}</span>
             <span class="badge badge-urgency" :class="`urgency-${currentIssue.urgency}`" v-if="currentIssue.urgency">{{ urgencyLabel(currentIssue.urgency) }}</span>
-            <span class="badge badge-category" v-if="currentIssue.category">{{ currentIssue.category }}</span>
-            <span class="badge" :class="`badge-${currentIssue.type}`">{{ currentIssue.type }}</span>
+            <span class="badge badge-category" v-if="currentIssue.category">{{ label(categoryLabels, currentIssue.category) }}</span>
+            <span class="badge" :class="`badge-${currentIssue.type}`">{{ label(channelLabels, currentIssue.type) }}</span>
             <span class="issue-msg-count" v-if="currentIssue.message_count > 1">
               {{ currentIssue.message_count }} wiadomości
             </span>
@@ -134,7 +134,7 @@
                 </div>
                 <div class="timeline-body">
                   <div class="timeline-meta">
-                    <span class="badge badge-sm" :class="`badge-${entry.type}`">{{ entry.type }}</span>
+                    <span class="badge badge-sm" :class="`badge-${entry.type}`">{{ label(channelLabels, entry.type) }}</span>
                     <span class="timeline-time">{{ entry.time_label }}</span>
                   </div>
                   <p class="timeline-content">{{ entry.content }}</p>
@@ -307,6 +307,7 @@ import { storeToRefs } from 'pinia'
 import { useBriefingStore } from '../stores/briefing.js'
 import { useMessagesStore } from '../stores/messages.js'
 import { textToSpeech } from '../api.js'
+import { priorityLabels, categoryLabels, channelLabels, label } from '../labels.js'
 
 const router = useRouter()
 

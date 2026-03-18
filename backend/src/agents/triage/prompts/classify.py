@@ -14,9 +14,20 @@ Follow-ups so far: {followup_count}
 Message:
 {content}
 
+Category guidelines:
+- safety: ONLY direct threats to life or health — fire, gas leak, structural collapse, physical violence, mold/asbestos exposure. A broken gate or elevator is NOT safety.
+- plumbing: Water/leak/pipe/flooding issues — active water damage, pipe burst, clogged drain, toilet overflow.
+- electrical: Electrical hazards — sparks, exposed wiring, power outage, electrical fire risk.
+- access: Broken gate, broken elevator, broken intercom/domofon, lock issues, key problems, entry/exit problems. These are infrastructure access issues, NOT safety.
+- noise: Noise complaints — loud neighbors, music, construction noise.
+- maintenance: General repairs and upkeep — painting, cleaning, heating/cooling, appliances.
+- billing: Financial matters — rent, invoices, payments, deposits.
+- compliance: Building rules violations, unauthorized modifications, lease violations.
+- other: Anything that doesn't fit above.
+
 Priority guidelines:
 - urgent: ALWAYS for construction/structural failure, health hazards, anything threatening resident safety or causing significant property/financial loss. Also: fire, gas leak, flooding, water damage, any leak (pipe burst, roof leak, ceiling leak), electrical danger, building code violations, mold/asbestos exposure, legal threats, 3+ follow-ups. Water/leak issues are ALWAYS urgent because time is critical — damage escalates every minute.
-- high: infrastructure failure (elevator, gate), repeated complaints, deadline pressure, broken heating/cooling in extreme weather
+- high: infrastructure failure (elevator, gate), repeated complaints, deadline pressure, broken heating/cooling in extreme weather. A broken gate is HIGH, not urgent — it's inconvenient but not dangerous.
 - medium: standard maintenance requests, general complaints
 - low: informational, billing questions, parking, admin requests
 

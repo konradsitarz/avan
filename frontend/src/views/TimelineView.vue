@@ -26,8 +26,8 @@
             <div class="tc-header">
               <span class="tc-sender">{{ msg.sender }}</span>
               <div class="tc-badges">
-                <span class="badge" :class="`badge-${msg.type}`">{{ msg.type }}</span>
-                <span class="badge" :class="`badge-${msg.priority}`">{{ msg.priority }}</span>
+                <span class="badge" :class="`badge-${msg.type}`">{{ label(channelLabels, msg.type) }}</span>
+                <span class="badge" :class="`badge-${msg.priority}`">{{ label(priorityLabels, msg.priority) }}</span>
               </div>
             </div>
             <p class="tc-content">{{ msg.content }}</p>
@@ -42,7 +42,7 @@
           <span class="group-toggle">{{ group.open ? '\u25BC' : '\u25B6' }}</span>
           <span class="group-name">{{ group.key }}</span>
           <span class="group-count">{{ group.messages.length }} {{ group.messages.length > 1 ? 'wiadomości' : 'wiadomość' }}</span>
-          <span class="badge" :class="`badge-${group.maxPriority}`">{{ group.maxPriority }}</span>
+          <span class="badge" :class="`badge-${group.maxPriority}`">{{ label(priorityLabels, group.maxPriority) }}</span>
         </div>
         <div v-if="group.open" class="timeline-track">
           <div v-for="msg in group.messages" :key="msg._id || msg.id" class="timeline-entry">
@@ -53,8 +53,8 @@
             <div class="timeline-card card">
               <div class="tc-header">
                 <div class="tc-badges">
-                  <span class="badge" :class="`badge-${msg.type}`">{{ msg.type }}</span>
-                  <span class="badge" :class="`badge-${msg.priority}`">{{ msg.priority }}</span>
+                  <span class="badge" :class="`badge-${msg.type}`">{{ label(channelLabels, msg.type) }}</span>
+                  <span class="badge" :class="`badge-${msg.priority}`">{{ label(priorityLabels, msg.priority) }}</span>
                 </div>
               </div>
               <p class="tc-content">{{ msg.content }}</p>
@@ -80,8 +80,8 @@
               <div class="tc-header">
                 <span class="tc-sender">{{ msg.sender }}</span>
                 <div class="tc-badges">
-                  <span class="badge" :class="`badge-${msg.type}`">{{ msg.type }}</span>
-                  <span class="badge" :class="`badge-${msg.priority}`">{{ msg.priority }}</span>
+                  <span class="badge" :class="`badge-${msg.type}`">{{ label(channelLabels, msg.type) }}</span>
+                  <span class="badge" :class="`badge-${msg.priority}`">{{ label(priorityLabels, msg.priority) }}</span>
                 </div>
               </div>
               <p class="tc-content">{{ msg.content }}</p>
@@ -97,6 +97,7 @@
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
 import { getMessages } from '../api.js'
+import { priorityLabels, channelLabels, label } from '../labels.js'
 
 const messages = ref([])
 const loading = ref(false)
