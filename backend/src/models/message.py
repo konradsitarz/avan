@@ -37,6 +37,8 @@ class Message(Document):
     # Triage agent output
     category: Optional[str] = None
     sender_type: Optional[SenderType] = None
+    urgency: Optional[str] = None       # "immediate", "today", "this_week", "no_rush"
+    importance: Optional[str] = None    # "critical", "high", "moderate", "low"
     related_ticket_ids: list[str] = Field(default_factory=list)
     group_with: Optional[str] = None  # ID of the primary ticket this is grouped under
     triage_action: Optional[TriageAction] = None

@@ -29,7 +29,7 @@ class BriefingState(TypedDict):
     message_count: int
     urgent_count: int
     high_count: int
-    unassigned_count: int
+    unassigned_note: str  # Only populated when some messages are assigned (otherwise empty)
     briefing_summary: str
     issue_briefs: list[dict]
 
@@ -49,7 +49,7 @@ SUMMARY_PROMPT = """Oto aktualne aktywne sprawy na Twoich nieruchomościach:
 
 {messages_text}
 
-Statystyki: {message_count} spraw łącznie, {urgent_count} pilnych, {high_count} o wysokim priorytecie, {unassigned_count} nieprzypisanych.
+Statystyki: {message_count} spraw łącznie, {urgent_count} pilnych, {high_count} o wysokim priorytecie.{unassigned_note}
 
 Napisz 2-3 zdaniowy briefing dla zarządcy nieruchomości. Bądź ciepły, ale bezpośredni.
 Zacznij od najważniejszej sytuacji, potem daj ogólny obraz obciążenia.
@@ -85,7 +85,7 @@ def generate_summary(state: BriefingState) -> dict:
         message_count=state["message_count"],
         urgent_count=state["urgent_count"],
         high_count=state["high_count"],
-        unassigned_count=state["unassigned_count"],
+        unassigned_note=state["unassigned_note"],
     )
     response = llm.invoke([
         SystemMessage(content=SYSTEM_PROMPT),
@@ -142,6 +142,35 @@ _briefing_graph = _workflow.compile()
 # ---------------------------------------------------------------------------
 # Service class
 # ---------------------------------------------------------------------------
+
+# Categories representing direct life/safety threats — sort above other urgent issues
+_LIFE_THREAT_CATEGORIES = {"safety", "plumbing", "electrical"}
+
+# Eisenhower sorting: urgency (can it wait?) × importance (how serious?)
+_URGENCY_ORDER = {"immediate": 0, "today": 1, "this_week": 2, "no_rush": 3}
+_IMPORTANCE_ORDER = {"critical": 0, "high": 1, "moderate": 2, "low": 3}
+
+
+def _eisenhower_quadrant(urgency: str | None, importance: str | None) -> str:
+    """Map urgency × importance to an Eisenhower quadrant label."""
+    is_urgent = (urgency or "this_week") in ("immediate", "today")
+    is_important = (importance or "moderate") in ("critical", "high")
+    if is_urgent and is_important:
+        return "urgent_important"       # Do first
+    if not is_urgent and is_important:
+        return "not_urgent_important"   # Schedule
+    if is_urgent and not is_important:
+        return "urgent_not_important"   # Delegate
+    return "not_urgent_not_important"   # Deprioritize
+
+
+_QUADRANT_ORDER = {
+    "urgent_important": 0,
+    "urgent_not_important": 1,
+    "not_urgent_important": 2,
+    "not_urgent_not_important": 3,
+}
+
 
 class BriefingService:
     """Manages briefing generation and caching."""
@@ -238,7 +267,11 @@ class BriefingService:
             "message_count": stats["total"],
             "urgent_count": stats["urgent"],
             "high_count": stats["high"],
-            "unassigned_count": stats["unassigned"],
+            "unassigned_note": (
+                f" {stats['unassigned']} nieprzypisanych."
+                if stats["unassigned"] < stats["total"]
+                else ""
+            ),
             "briefing_summary": "",
             "issue_briefs": [dict(item) for item in items],
         }
@@ -262,37 +295,102 @@ class BriefingService:
         await briefing.insert()
 
     @staticmethod
+    def _resolve_root(message_id: str, group_with_map: dict[str, str]) -> str:
+        """Walk group_with chains to find the root primary ticket ID."""
+        visited = set()
+        current = message_id
+        while current in group_with_map and current not in visited:
+            visited.add(current)
+            current = group_with_map[current]
+        return current
+
+    @staticmethod
     def _group_messages(messages: list[Message]) -> list[tuple[Message, list[Message]]]:
         """
-        Group messages by (sender, category) into issue threads.
-        Each group becomes one briefing issue. The primary message is the one
-        with the highest priority (or latest if tied). Related messages form
-        the timeline.
+        Group messages into issue threads using the triage agent's group_with
+        field as the primary grouping key, with sender||category as fallback.
 
-        Messages without a category fall back to sender-only grouping.
+        Phase 1: Build a group_with map and resolve chains (A→B→C becomes A→C)
+        Phase 2: Group messages by their resolved root ID
+        Phase 3: For messages without group_with (self-primary), merge by
+                 sender||category as fallback (handles regex fallback cases)
         """
-        groups: dict[str, list[Message]] = {}
+        # Build lookup: message_id → message
+        by_id: dict[str, Message] = {str(m.id): m for m in messages}
 
+        # Build group_with map for chain resolution
+        group_with_map: dict[str, str] = {}
         for m in messages:
-            key = f"{m.sender}||{m.category or 'uncategorized'}"
-            groups.setdefault(key, []).append(m)
+            if m.group_with:
+                group_with_map[str(m.id)] = m.group_with
+
+        # Phase 1 & 2: group by resolved root
+        root_groups: dict[str, list[Message]] = {}
+        for m in messages:
+            mid = str(m.id)
+            if m.group_with:
+                root = BriefingService._resolve_root(mid, group_with_map)
+                root_groups.setdefault(root, []).append(m)
+            else:
+                # Self-primary — temporarily keyed by own ID
+                root_groups.setdefault(mid, []).append(m)
+
+        # Phase 3: merge self-primary groups by sender||category fallback
+        merged: dict[str, list[Message]] = {}
+        fallback_mapping: dict[str, str] = {}  # sender||category → first key seen
+
+        for key, msgs in root_groups.items():
+            # If this group was formed by group_with (key is a root ID that
+            # some message points to), keep it as-is
+            has_grouped_members = any(
+                m.group_with and str(m.id) != key for m in msgs
+            )
+            if has_grouped_members or key not in by_id:
+                # group_with-based group — keep under this key
+                merged.setdefault(key, []).extend(msgs)
+            else:
+                # Self-primary group — merge by sender||category
+                primary_msg = by_id[key]
+                fb_key = f"{primary_msg.sender}||{primary_msg.category or 'uncategorized'}"
+                if fb_key in fallback_mapping:
+                    merged[fallback_mapping[fb_key]].extend(msgs)
+                else:
+                    fallback_mapping[fb_key] = key
+                    merged.setdefault(key, []).extend(msgs)
+
+        # Also merge any group_with group into an existing fallback group
+        # if the root message itself is a self-primary in a fallback group
+        # (This handles: root message is self-primary, other messages point to it)
 
         priority_order = {"urgent": 0, "high": 1, "medium": 2, "low": 3}
         result = []
 
-        for group_msgs in groups.values():
+        for group_msgs in merged.values():
+            # Deduplicate (a message could appear twice if it's both root and member)
+            seen_ids = set()
+            deduped = []
+            for m in group_msgs:
+                if str(m.id) not in seen_ids:
+                    seen_ids.add(str(m.id))
+                    deduped.append(m)
+
             # Sort by time (oldest first) for timeline
-            group_msgs.sort(key=lambda m: m.created_at)
+            deduped.sort(key=lambda m: m.created_at)
             # Primary = highest priority message (latest if tied)
             primary = max(
-                group_msgs,
+                deduped,
                 key=lambda m: (-priority_order.get(m.priority.value, 99), m.created_at),
             )
-            related = [m for m in group_msgs if m.id != primary.id]
+            related = [m for m in deduped if m.id != primary.id]
             result.append((primary, related))
 
-        # Sort groups by priority of primary (urgent first)
-        result.sort(key=lambda t: (priority_order.get(t[0].priority.value, 99), t[0].created_at))
+        # Sort groups: Eisenhower quadrant first, then life-threat categories, then priority, then time
+        result.sort(key=lambda t: (
+            _QUADRANT_ORDER.get(_eisenhower_quadrant(t[0].urgency, t[0].importance), 99),
+            0 if t[0].category in _LIFE_THREAT_CATEGORIES else 1,
+            priority_order.get(t[0].priority.value, 99),
+            t[0].created_at,
+        ))
 
         return result
 
@@ -339,6 +437,9 @@ class BriefingService:
             "sender": m.sender.strip(),
             "content": m.content,  # primary message content
             "priority": m.priority.value,
+            "urgency": m.urgency,
+            "importance": m.importance,
+            "quadrant": _eisenhower_quadrant(m.urgency, m.importance),
             "type": m.type.value,
             "time_label": BriefingService._time_label(m.created_at, now),
             "created_at": m.created_at.isoformat(),

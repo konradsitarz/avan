@@ -7,7 +7,7 @@ import os
 import re
 import logging
 
-from ..models.message import Message, Priority
+from ..models.message import Message, Priority, SenderType, TriageAction
 from ..agents import run_triage
 
 logger = logging.getLogger(__name__)
@@ -32,10 +32,12 @@ async def triage_message(message: Message) -> Message:
 
             message.priority = Priority(result["priority"])
             message.category = result["category"]
-            message.sender_type = result["sender_type"]
+            message.urgency = result["urgency"]
+            message.importance = result["importance"]
+            message.sender_type = SenderType(result["sender_type"])
             message.related_ticket_ids = result["related_ticket_ids"]
             message.group_with = result["group_with"]
-            message.triage_action = result["action"]
+            message.triage_action = TriageAction(result["action"])
             message.action_reason = result["action_reason"]
             message.draft_response = result["draft"]
             return message

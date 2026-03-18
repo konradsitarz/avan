@@ -57,6 +57,8 @@ async def run_triage(
         # Filled by nodes
         "category": "",
         "priority": "",
+        "urgency": "",
+        "importance": "",
         "sender_type": "",
         "related_ticket_ids": [],
         "related_context": "",

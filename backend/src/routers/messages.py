@@ -22,8 +22,14 @@ async def get_messages():
 
 @router.post("", response_model=Message)
 async def create_message(message: Message):
-    message = await triage_message(message)
+    # Save first so the message always enters the system, even if triage fails
     await message.insert()
+    try:
+        message = await triage_message(message)
+        await message.save()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(f"Triage failed for {message.id}, message saved without triage: {e}")
     await BriefingService.invalidate()
     return message
 

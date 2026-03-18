@@ -45,7 +45,7 @@
             <span class="pill-dot dot-medium"></span>
             <span>{{ briefing.stats.medium + briefing.stats.low }} rutynowych</span>
           </div>
-          <div class="stat-pill">
+          <div class="stat-pill" v-if="briefing.stats.unassigned < briefing.stats.total">
             <span>{{ briefing.stats.unassigned }} nieprzypisanych</span>
           </div>
         </div>
@@ -93,6 +93,7 @@
 
           <div class="issue-meta">
             <span class="badge" :class="`badge-${currentIssue.priority}`">{{ currentIssue.priority }}</span>
+            <span class="badge badge-urgency" :class="`urgency-${currentIssue.urgency}`" v-if="currentIssue.urgency">{{ urgencyLabel(currentIssue.urgency) }}</span>
             <span class="badge badge-category" v-if="currentIssue.category">{{ currentIssue.category }}</span>
             <span class="badge" :class="`badge-${currentIssue.type}`">{{ currentIssue.type }}</span>
             <span class="issue-msg-count" v-if="currentIssue.message_count > 1">
@@ -149,17 +150,29 @@
             </div>
           </div>
 
+          <!-- Suggested action -->
+          <div class="issue-suggested-action" v-if="suggestedAction(currentIssue)">
+            <label>Sugerowane działanie</label>
+            <button class="suggested-action-btn" :class="`suggested-${suggestedAction(currentIssue).type}`" @click="suggestedAction(currentIssue).handler(currentIssue)">
+              <span class="action-icon">{{ suggestedAction(currentIssue).icon }}</span>
+              <div class="action-info">
+                <span class="action-name">{{ suggestedAction(currentIssue).name }}</span>
+                <span class="action-desc">{{ suggestedAction(currentIssue).desc }}</span>
+              </div>
+            </button>
+          </div>
+
           <!-- Actions menu -->
           <div class="issue-quick-actions">
             <button class="action-btn action-primary" @click="showActions = !showActions">
-              {{ showActions ? 'Zamknij' : 'Akcje' }}
+              {{ showActions ? 'Zamknij' : 'Wszystkie akcje' }}
             </button>
             <div v-if="showActions" class="actions-menu">
-              <button class="action-menu-item" @click="callSender(currentIssue)">
-                <span class="action-icon">&#128222;</span>
+              <button class="action-menu-item" @click="respondToSender(currentIssue)">
+                <span class="action-icon">&#9993;</span>
                 <div class="action-info">
-                  <span class="action-name">Zadzwoń do nadawcy</span>
-                  <span class="action-desc">Połącz z {{ currentIssue.sender }}</span>
+                  <span class="action-name">Odpowiedz nadawcy</span>
+                  <span class="action-desc">Wyślij odpowiedź do {{ currentIssue.sender }}</span>
                 </div>
               </button>
               <button class="action-menu-item" @click="escalateIssue(currentIssue)">
@@ -383,9 +396,9 @@ const showActions = ref(false)
 watch(currentIndex, () => { showActions.value = false })
 
 // Action handlers
-const callSender = (issue) => {
+const respondToSender = (issue) => {
   showActions.value = false
-  alert(`Dzwonię do ${issue.sender}...`)
+  alert(`Odpowiedź do ${issue.sender}...`)
 }
 
 const escalateIssue = (issue) => {
@@ -412,6 +425,80 @@ const sendAcknowledgment = (issue) => {
 const markResolved = (issue) => {
   showActions.value = false
   alert(`Oznaczono jako rozwiązane: ${issue.sender} — ${issue.category || 'ogólne'}`)
+}
+
+// Suggested action based on issue context
+const suggestedAction = (issue) => {
+  if (!issue) return null
+
+  const urgency = issue.urgency || ''
+  const importance = issue.importance || ''
+  const category = issue.category || ''
+  const followups = issue.followup_count || 0
+
+  // Immediate + critical → assign to technician NOW
+  if (urgency === 'immediate' && importance === 'critical') {
+    return {
+      type: 'urgent',
+      icon: '\u{1F6E0}',
+      name: 'Wyślij technika natychmiast',
+      desc: `Aktywna awaria (${category}) — wymaga interwencji na miejscu`,
+      handler: assignToTechnician,
+    }
+  }
+
+  // 3+ followups → respond to sender (they're frustrated)
+  if (followups >= 3) {
+    return {
+      type: 'urgent',
+      icon: '\u2709',
+      name: 'Odpowiedz nadawcy pilnie',
+      desc: `Lokator zgłaszał się ${followups}x — potrzebuje informacji zwrotnej`,
+      handler: respondToSender,
+    }
+  }
+
+  // Immediate urgency → schedule visit
+  if (urgency === 'immediate') {
+    return {
+      type: 'high',
+      icon: '\u{1F4C5}',
+      name: 'Zaplanuj wizytę dziś',
+      desc: `Sytuacja pilna (${category}) — wymaga oględzin`,
+      handler: scheduleVisit,
+    }
+  }
+
+  // Today urgency → assign technician
+  if (urgency === 'today') {
+    return {
+      type: 'medium',
+      icon: '\u{1F6E0}',
+      name: 'Przypisz do technika',
+      desc: `Wymaga uwagi dziś — ${category}`,
+      handler: assignToTechnician,
+    }
+  }
+
+  // Important but not urgent → acknowledge
+  if (importance === 'critical' || importance === 'high') {
+    return {
+      type: 'medium',
+      icon: '\u2709',
+      name: 'Wyślij potwierdzenie',
+      desc: 'Poinformuj nadawcę, że sprawa jest w toku',
+      handler: sendAcknowledgment,
+    }
+  }
+
+  // Everything else → acknowledge
+  return {
+    type: 'low',
+    icon: '\u2709',
+    name: 'Wyślij potwierdzenie',
+    desc: 'Standardowa sprawa — potwierdź odbiór',
+    handler: sendAcknowledgment,
+  }
 }
 
 onUnmounted(() => stopTTS())
@@ -452,6 +539,16 @@ const submitOverride = async () => {
   } finally {
     overrideLoading.value = false
   }
+}
+
+const urgencyLabel = (urgency) => {
+  const labels = {
+    immediate: 'teraz',
+    today: 'dziś',
+    this_week: 'ten tydzień',
+    no_rush: 'bez pośpiechu',
+  }
+  return labels[urgency] || urgency
 }
 
 const formatDate = (dateStr) => {
@@ -748,6 +845,17 @@ onMounted(() => briefingStore.fetch())
   border-radius: 10px;
 }
 
+/* Urgency badge */
+.badge-urgency {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+.urgency-immediate { background: rgba(248,81,73,0.12); color: var(--urgent); }
+.urgency-today { background: rgba(210,153,34,0.12); color: var(--high); }
+.urgency-this_week { background: rgba(88,166,255,0.1); color: var(--medium); }
+.urgency-no_rush { background: rgba(139,148,158,0.1); color: var(--low); }
+
 /* Category badge */
 .badge-category {
   background: rgba(63, 185, 80, 0.12);
@@ -874,12 +982,78 @@ onMounted(() => briefingStore.fetch())
   font-weight: 700 !important;
 }
 
+/* Suggested action */
+.issue-suggested-action {
+  padding: 14px 24px 0;
+  border-top: 1px solid var(--border);
+}
+
+.issue-suggested-action label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  display: block;
+}
+
+.suggested-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  border: 1px solid;
+  transition: all 0.15s;
+}
+
+.suggested-urgent {
+  background: rgba(248, 81, 73, 0.08);
+  border-color: rgba(248, 81, 73, 0.3);
+  color: var(--text-primary);
+}
+.suggested-urgent:hover {
+  background: rgba(248, 81, 73, 0.14);
+}
+.suggested-urgent .action-name { color: var(--urgent); }
+
+.suggested-high {
+  background: rgba(210, 153, 34, 0.08);
+  border-color: rgba(210, 153, 34, 0.3);
+  color: var(--text-primary);
+}
+.suggested-high:hover {
+  background: rgba(210, 153, 34, 0.14);
+}
+.suggested-high .action-name { color: var(--high); }
+
+.suggested-medium {
+  background: rgba(88, 166, 255, 0.08);
+  border-color: rgba(88, 166, 255, 0.3);
+  color: var(--text-primary);
+}
+.suggested-medium:hover {
+  background: rgba(88, 166, 255, 0.14);
+}
+.suggested-medium .action-name { color: var(--accent); }
+
+.suggested-low {
+  background: rgba(139, 148, 158, 0.06);
+  border-color: rgba(139, 148, 158, 0.2);
+  color: var(--text-primary);
+}
+.suggested-low:hover {
+  background: rgba(139, 148, 158, 0.1);
+}
+
 /* Quick action buttons */
 .issue-quick-actions {
   display: flex;
   gap: 8px;
   padding: 14px 24px;
-  border-top: 1px solid var(--border);
   flex-wrap: wrap;
 }
 
@@ -890,7 +1064,7 @@ onMounted(() => briefingStore.fetch())
   font-weight: 600;
   cursor: pointer;
   border: 1px solid var(--border);
-  background: var(--bg-primary);
+  background: var(--bg-secondary);
   color: var(--text-secondary);
   transition: all 0.15s;
 }
@@ -902,8 +1076,8 @@ onMounted(() => briefingStore.fetch())
 }
 
 .action-primary {
-  color: var(--accent);
-  border-color: var(--accent);
+  color: var(--text-secondary);
+  border-color: var(--border);
 }
 
 .actions-menu {
@@ -912,7 +1086,7 @@ onMounted(() => briefingStore.fetch())
   gap: 2px;
   width: 100%;
   margin-top: 8px;
-  background: var(--bg-primary);
+  background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 10px;
   padding: 6px;
@@ -936,6 +1110,7 @@ onMounted(() => briefingStore.fetch())
   transition: background 0.1s;
   text-align: left;
   width: 100%;
+  color: var(--text-primary);
 }
 
 .action-menu-item:hover {
@@ -963,7 +1138,7 @@ onMounted(() => briefingStore.fetch())
 
 .action-desc {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 /* TTS button on summary */

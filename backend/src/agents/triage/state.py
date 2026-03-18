@@ -12,6 +12,8 @@ class TriageState(TypedDict):
     # Classify node output
     category: str           # e.g. "plumbing", "noise", "billing", "safety", "maintenance"
     priority: str           # low / medium / high / urgent
+    urgency: str            # immediate / today / this_week / no_rush
+    importance: str         # critical / high / moderate / low
     sender_type: str        # resident / vendor / system
 
     # Relate node output

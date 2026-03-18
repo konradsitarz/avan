@@ -30,6 +30,22 @@ class ClassifyPriority(str, Enum):
     URGENT = "urgent"
 
 
+class Urgency(str, Enum):
+    """Can it wait? Time-sensitivity axis."""
+    IMMEDIATE = "immediate"   # Must act now — active damage, danger, or escalation in progress
+    TODAY = "today"           # Needs attention today but not this minute
+    THIS_WEEK = "this_week"   # Can wait a few days without consequences
+    NO_RUSH = "no_rush"       # Purely informational or low time-pressure
+
+
+class Importance(str, Enum):
+    """How serious? Impact axis."""
+    CRITICAL = "critical"     # Safety risk, major property damage, legal exposure
+    HIGH = "high"             # Significant resident impact or financial risk
+    MODERATE = "moderate"     # Standard issue, limited impact
+    LOW = "low"               # Minor inconvenience, cosmetic, informational
+
+
 class SenderType(str, Enum):
     RESIDENT = "resident"
     VENDOR = "vendor"
@@ -39,6 +55,8 @@ class SenderType(str, Enum):
 class ClassificationResult(BaseModel):
     category: Category = Field(description="Issue category")
     priority: ClassifyPriority = Field(description="Urgency level")
+    urgency: Urgency = Field(description="Can it wait? How time-sensitive is this issue.")
+    importance: Importance = Field(description="How serious? What is the potential impact if ignored.")
     sender_type: SenderType = Field(description="Who sent the message")
 
 
@@ -68,10 +86,14 @@ async def classify(state: dict) -> dict:
         result = ClassificationResult(
             category=Category.OTHER,
             priority=ClassifyPriority.MEDIUM,
+            urgency=Urgency.THIS_WEEK,
+            importance=Importance.MODERATE,
             sender_type=SenderType.RESIDENT,
         )
 
-    # Auto-escalation override: 3+ follow-ups always urgent
+    # Auto-escalation override: 3+ follow-ups always urgent priority
+    # but urgency stays as LLM decided — a broken gate with 3 followups
+    # is urgent priority but not "immediate" like active flooding
     priority = result.priority.value
     if state["followup_count"] >= 3:
         priority = "urgent"
@@ -79,5 +101,7 @@ async def classify(state: dict) -> dict:
     return {
         "category": result.category.value,
         "priority": priority,
+        "urgency": result.urgency.value,
+        "importance": result.importance.value,
         "sender_type": result.sender_type.value,
     }

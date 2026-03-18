@@ -83,10 +83,29 @@ classify → relate → decide
                       └── standard  → draft → END
 ```
 
-- **classify**: LLM with structured output (Pydantic) → category, priority, sender_type
-- **relate**: DB lookup for related tickets by sender + category
+- **classify**: LLM with structured output (Pydantic) → category, priority, urgency, importance, sender_type
+- **relate**: Same-sender grouping (free) + LLM semantic matching for cross-sender issues (structured output, gpt-4o-mini). Matches by "same physical issue" = same problem type + same location. Fires only when no same-sender match exists, cross-sender candidates exist in the same category, and API key is set.
 - **decide**: Rule-based escalation (urgent/safety/plumbing/electrical/compliance/3+ followups)
 - **draft**: LLM generates response appropriate for the channel (SMS = 160 chars, email = 2-4 sentences)
+
+### Classification Axes
+
+Each message gets classified on three independent axes:
+
+| Axis | Values | Question |
+|------|--------|----------|
+| **Priority** | urgent / high / medium / low | Overall triage level (legacy, drives escalation rules) |
+| **Urgency** | immediate / today / this_week / no_rush | Can it wait? Is damage or danger growing right now? |
+| **Importance** | critical / high / moderate / low | How serious if ignored? What's the worst realistic outcome? |
+
+Urgency and importance combine into an **Eisenhower quadrant** that drives briefing sort order:
+
+| Quadrant | Urgency | Importance | Action |
+|----------|---------|------------|--------|
+| **Do first** | immediate / today | critical / high | Active damage, safety threats |
+| **Delegate** | immediate / today | moderate / low | Noisy but low-impact |
+| **Schedule** | this_week / no_rush | critical / high | Serious but stable |
+| **Deprioritize** | this_week / no_rush | moderate / low | Minor, informational |
 
 ### Priority Rules
 
@@ -99,8 +118,15 @@ classify → relate → decide
 
 ## Briefing
 
-Messages are grouped by **(sender + category)** into issue threads. Each issue shows:
+Messages are grouped into issue threads using two strategies:
+1. **`group_with` field** — set by the triage agent's relate node (same-sender grouping + LLM cross-sender matching), with chain resolution (A→B→C becomes A→C)
+2. **Sender + category fallback** — for messages without `group_with` (e.g., regex fallback mode)
+
+Issues are sorted by Eisenhower quadrant, then life-threat category (safety/plumbing/electrical first), then priority, then time.
+
+Each issue shows:
 - LLM-written brief synthesizing the full thread
+- Urgency badge (teraz / dziś / ten tydzień / bez pośpiechu)
 - Triage reasoning (why this priority/action was chosen)
 - Timeline of all messages in the thread
 - Category, priority, assignment status

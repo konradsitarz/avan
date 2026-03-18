@@ -41,17 +41,17 @@ backend/src/
 │   ├── database.py    # MongoDB + Beanie init
 │   └── llm.py         # Shared LLM factory (get_llm)
 ├── models/            # Beanie documents
-│   ├── message.py     # Message with triage fields (category, sender_type, triage_action, etc.)
+│   ├── message.py     # Message with triage fields (category, priority, urgency, importance, sender_type, triage_action, group_with, etc.)
 │   ├── briefing.py    # Cached briefing with stale flag
 │   └── rule.py        # Automation rules
 ├── agents/            # LangGraph agents
 │   └── triage/        # Triage agent: classify → relate → decide → draft
 │       ├── state.py   # TriageState TypedDict
 │       ├── graph.py   # LangGraph workflow with conditional edges
-│       ├── nodes/     # classify (structured output), relate (DB lookup), decide (rules), draft (LLM)
+│       ├── nodes/     # classify (structured output), relate (DB lookup + LLM cross-sender), decide (rules), draft (LLM)
 │       └── prompts/   # System/user prompts for classify and draft
 ├── services/          # Business logic
-│   ├── briefing_service.py  # Cached briefing with sender+category grouping, LangGraph generation
+│   ├── briefing_service.py  # Cached briefing with group_with + Eisenhower sorting, LangGraph generation
 │   └── triage_service.py    # Orchestrates triage agent, regex fallback when no API key
 ├── routers/           # Thin HTTP endpoints
 │   ├── messages.py    # CRUD + DELETE /all for simulation reset
@@ -70,23 +70,37 @@ backend/src/
 ### Key Agents
 
 **Triage Agent** (runs on every new message):
-- `classify` — LLM with structured output (Pydantic schema) → category, priority, sender_type
-- `relate` — DB query for related tickets by sender + category
+- `classify` — LLM with structured output (Pydantic schema) → category, priority, urgency, importance, sender_type
+- `relate` — Same-sender grouping (free, no LLM) + LLM cross-sender semantic matching (structured output). Cross-sender match fires only when: no same-sender match, cross-sender candidates exist in same category, and API key is set. Candidates capped at 5, content truncated, temperature 0.0.
 - `decide` — Rule-based: escalate (urgent/safety/plumbing/electrical/compliance/3+ followups) / group / standard
 - `draft` — LLM generates channel-appropriate response (skipped for escalations)
 - Conditional edges: escalations skip drafting and go straight to END
 
 **Briefing Agent** (runs when cached briefing is stale):
-- Groups messages by (sender, category) into issue threads
+- Groups messages by `group_with` (chain-resolved) with sender+category fallback
+- Sorts by Eisenhower quadrant (urgency × importance), then life-threat categories, then priority
 - Generates executive summary + per-issue briefs with timeline context
 - Cached in MongoDB, invalidated on any message create/update/delete
+
+### Classification Strategy
+Messages are classified on three axes:
+- **Priority** (urgent/high/medium/low) — overall triage level, drives escalation rules
+- **Urgency** (immediate/today/this_week/no_rush) — can it wait? Is damage growing right now?
+- **Importance** (critical/high/moderate/low) — how serious if ignored?
+
+Urgency × importance map to Eisenhower quadrants for briefing sort order:
+- urgent+important (do first) → urgent+not_important (delegate) → not_urgent+important (schedule) → neither (deprioritize)
+- Within same quadrant: life-threat categories (safety/plumbing/electrical) sort first
+
+`followup_count >= 3` forces priority=urgent but does NOT override urgency/importance — a broken gate with 3 followups is urgent priority but not "immediate" urgency like active flooding.
 
 ### Key Business Rules
 - Water/leak/plumbing issues are ALWAYS urgent (time-critical damage)
 - Construction failures, health hazards, significant property loss → urgent
 - Safety, electrical, compliance, plumbing categories → auto-escalate
-- `followup_count >= 3` → auto-escalate to urgent
-- Briefing groups messages by sender+category into single issue threads with timeline
+- `followup_count >= 3` → auto-escalate to urgent priority
+- `group_with` field drives briefing grouping with chain resolution + sender||category fallback
+- Cross-sender grouping uses LLM semantic matching ("same physical issue" = same problem + same location)
 - Falls back to regex-based triage when `OPENAI_API_KEY` is not set
 
 ## Environment Variables
