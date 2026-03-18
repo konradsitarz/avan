@@ -114,9 +114,9 @@ def generate_issue_briefs(state: BriefingState) -> dict:
 
         prompt = ISSUE_PROMPT.format(
             sender=issue["sender"],
-            category=issue.get("category") or "uncategorized",
+            category=issue.get("category") or "bez kategorii",
             priority=issue["priority"],
-            assigned_to=issue.get("assigned_to") or "Nobody (unassigned)",
+            assigned_to=issue.get("assigned_to") or "Nikt (nieprzypisane)",
             timeline=timeline_text,
         )
         response = llm.invoke([
@@ -259,7 +259,7 @@ class BriefingService:
             msg_count = item.get("message_count", 1)
             label = f"[{item['priority'].upper()}] {item.get('category', '?')} — {item['sender']}"
             if msg_count > 1:
-                label += f" ({msg_count} messages)"
+                label += f" ({msg_count} wiadomości)"
             messages_text += f"{label}: {item['content'][:200]}\n"
 
         initial_state: BriefingState = {
@@ -399,15 +399,21 @@ class BriefingService:
         created = created_at.replace(tzinfo=timezone.utc) if created_at.tzinfo is None else created_at
         age = now - created
         if age < timedelta(hours=1):
-            return "just now"
+            return "przed chwilą"
         elif age < timedelta(hours=2):
-            return "about an hour ago"
+            return "około godziny temu"
         elif age < timedelta(hours=24):
-            return f"{int(age.total_seconds() / 3600)} hours ago"
+            hours = int(age.total_seconds() / 3600)
+            if hours < 5:
+                return f"{hours} godziny temu"
+            return f"{hours} godzin temu"
         elif age < timedelta(days=2):
-            return "yesterday"
+            return "wczoraj"
         else:
-            return f"{int(age.total_seconds() / 86400)} days ago"
+            days = int(age.total_seconds() / 86400)
+            if days < 5:
+                return f"{days} dni temu"
+            return f"{days} dni temu"
 
     @staticmethod
     def _build_item(m: Message, now: datetime, related: list[Message] | None = None) -> dict:
@@ -447,6 +453,7 @@ class BriefingService:
             "followup_count": total_followups,
             "category": m.category,
             "action_reason": m.action_reason,
+            "draft_response": m.draft_response,
             "llm_brief": None,
             "message_count": len(all_messages),
             "timeline": timeline,

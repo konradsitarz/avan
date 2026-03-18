@@ -42,8 +42,7 @@ backend/src/
 │   └── llm.py         # Shared LLM factory (get_llm)
 ├── models/            # Beanie documents
 │   ├── message.py     # Message with triage fields (category, priority, urgency, importance, sender_type, triage_action, group_with, etc.)
-│   ├── briefing.py    # Cached briefing with stale flag
-│   └── rule.py        # Automation rules
+│   └── briefing.py    # Cached briefing with stale flag
 ├── agents/            # LangGraph agents
 │   └── triage/        # Triage agent: classify → relate → decide → draft
 │       ├── state.py   # TriageState TypedDict
@@ -55,13 +54,12 @@ backend/src/
 │   └── triage_service.py    # Orchestrates triage agent, regex fallback when no API key
 ├── routers/           # Thin HTTP endpoints
 │   ├── messages.py    # CRUD + DELETE /all for simulation reset
-│   ├── briefing.py    # Delegates to BriefingService
-│   └── rules.py       # Automation rules CRUD
+│   └── briefing.py    # Delegates to BriefingService
 └── main.py            # FastAPI app with CORS and lifespan
 ```
 
 ### Frontend: Vue 3 (Composition API) + Vite + Axios
-- Multi-route SPA: Briefing, Feed, Timeline, Respond, Rules views
+- Multi-route SPA: Briefing, Feed, Timeline, Respond views
 - Briefing view shows grouped issues with timeline, triage reasoning, and LLM briefs
 - FireBar simulation component: collapsible bottom bar with message firing, custom compose, and clear all
 - API base URL configured via `VITE_API_URL` env var (fallback: `http://localhost:8000`)
@@ -126,6 +124,4 @@ See `.env.example`. Key vars:
 - `GET|PUT|DELETE /api/messages/{id}` — Single message operations
 - `DELETE /api/messages/all` — Clear all messages and briefings (simulation reset)
 - `GET /api/briefing` — Get briefing (returns cached or regenerates if stale)
-- `GET|POST /api/rules` — List/create automation rules
-- `GET|PUT|DELETE /api/rules/{id}` — Single rule operations
 - Swagger docs at `http://localhost:8000/docs`

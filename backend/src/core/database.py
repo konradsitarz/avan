@@ -3,7 +3,6 @@ from beanie import init_beanie
 import os
 
 from ..models.message import Message
-from ..models.rule import Rule
 from ..models.briefing import Briefing
 from ..models.override import TriageOverride
 
@@ -17,5 +16,5 @@ async def init_db():
 
     await init_beanie(
         database=database,
-        document_models=[Message, Rule, Briefing, TriageOverride]
+        document_models=[Message, Briefing, TriageOverride]
     )

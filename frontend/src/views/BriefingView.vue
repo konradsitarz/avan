@@ -160,6 +160,17 @@
                 <span class="action-desc">{{ suggestedAction(currentIssue).desc }}</span>
               </div>
             </button>
+            <div v-if="currentIssue.draft_response" class="draft-in-action">
+              <button class="draft-toggle" @click="showDraft = !showDraft">
+                <span class="draft-reply-icon">&#8617;</span>
+                <span>Proponowana odpowiedź</span>
+                <span class="draft-chevron">{{ showDraft ? '&#9650;' : '&#9660;' }}</span>
+              </button>
+              <div v-if="showDraft" class="draft-response-body">
+                <p>{{ currentIssue.draft_response }}</p>
+                <button class="btn btn-sm draft-use-btn" @click="respondToSender(currentIssue)">Użyj w odpowiedzi</button>
+              </div>
+            </div>
           </div>
 
           <!-- Actions menu -->
@@ -291,10 +302,13 @@
 
 <script setup>
 import { ref, reactive, onMounted, onUnmounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useBriefingStore } from '../stores/briefing.js'
 import { useMessagesStore } from '../stores/messages.js'
 import { textToSpeech } from '../api.js'
+
+const router = useRouter()
 
 const briefingStore = useBriefingStore()
 const messagesStore = useMessagesStore()
@@ -391,14 +405,15 @@ watch(currentIndex, () => {
 
 // Actions menu
 const showActions = ref(false)
+const showDraft = ref(false)
 
-// Reset actions menu when switching issues
-watch(currentIndex, () => { showActions.value = false })
+// Reset actions menu and draft when switching issues
+watch(currentIndex, () => { showActions.value = false; showDraft.value = false })
 
 // Action handlers
 const respondToSender = (issue) => {
   showActions.value = false
-  alert(`Odpowiedź do ${issue.sender}...`)
+  router.push({ path: '/respond', query: { message: issue.id } })
 }
 
 const escalateIssue = (issue) => {
@@ -860,6 +875,67 @@ onMounted(() => briefingStore.fetch())
 .badge-category {
   background: rgba(63, 185, 80, 0.12);
   color: var(--success);
+}
+
+/* Draft in suggested action */
+.draft-in-action {
+  margin-top: 10px;
+}
+
+.draft-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--success);
+  font-weight: 600;
+  width: 100%;
+  transition: all 0.15s;
+}
+
+.draft-toggle:hover {
+  background: rgba(63, 185, 80, 0.06);
+  border-color: var(--success);
+}
+
+.draft-reply-icon {
+  font-size: 14px;
+}
+
+.draft-chevron {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.draft-response-body {
+  margin-top: 8px;
+  padding: 12px 14px;
+  background: rgba(63, 185, 80, 0.06);
+  border-left: 3px solid var(--success);
+  border-radius: 0 8px 8px 0;
+}
+
+.draft-response-body p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+.draft-use-btn {
+  margin-top: 10px;
+  border-color: var(--success);
+  color: var(--success);
+}
+
+.draft-use-btn:hover {
+  background: rgba(63, 185, 80, 0.1);
 }
 
 /* Triage reasoning */

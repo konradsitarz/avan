@@ -77,20 +77,24 @@
           </div>
           <div class="compose-body">
             <label>Odpowiedź</label>
+            <span v-if="selected.draft_response" class="draft-label">Wersja robocza wygenerowana przez AI</span>
             <textarea
               v-model="replyText"
               rows="6"
               placeholder="Wpisz odpowiedź..."
             ></textarea>
           </div>
-          <div class="compose-templates">
-            <label>Szybkie szablony</label>
-            <div class="template-chips">
-              <button class="chip" @click="applyTemplate('ack')">Potwierdzenie</button>
-              <button class="chip" @click="applyTemplate('escalate')">Eskalacja</button>
-              <button class="chip" @click="applyTemplate('resolved')">Rozwiązano</button>
-              <button class="chip" @click="applyTemplate('info')">Prośba o info</button>
+          <div class="compose-generate">
+            <label>Wygeneruj odpowiedź AI</label>
+            <div class="generate-chips">
+              <button class="chip" :class="{ loading: generating }" :disabled="generating" @click="generateDraft(null)">Automatyczna</button>
+              <button class="chip" :class="{ loading: generating }" :disabled="generating" @click="generateDraft('ack')">Potwierdzenie</button>
+              <button class="chip" :class="{ loading: generating }" :disabled="generating" @click="generateDraft('escalate')">Eskalacja</button>
+              <button class="chip" :class="{ loading: generating }" :disabled="generating" @click="generateDraft('resolved')">Rozwiązano</button>
+              <button class="chip" :class="{ loading: generating }" :disabled="generating" @click="generateDraft('info')">Prośba o info</button>
             </div>
+            <span v-if="generating" class="generating-label">Generowanie...</span>
+            <span v-if="generateError" class="generate-error">{{ generateError }}</span>
           </div>
           <div class="compose-actions">
             <button class="btn" @click="clear">Anuluj</button>
@@ -112,7 +116,10 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { getMessages } from '../api.js'
+import { useRoute } from 'vue-router'
+import { getMessages, generateReply } from '../api.js'
+
+const route = useRoute()
 
 const messages = ref([])
 const selected = ref(null)
@@ -120,6 +127,8 @@ const replyText = ref('')
 const replyChannel = ref('email')
 const channelFilter = ref('')
 const sent = ref(false)
+const generating = ref(false)
+const generateError = ref('')
 
 const priorityOrder = { urgent: 0, high: 1, medium: 2, low: 3 }
 
@@ -138,19 +147,25 @@ const replyChannels = computed(() => {
 
 const selectMessage = (msg) => {
   selected.value = msg
-  replyText.value = ''
+  replyText.value = msg.draft_response || ''
   replyChannel.value = msg.type === 'voice' ? 'sms' : msg.type
 }
 
-const templates = {
-  ack: 'Dziękujemy za zgłoszenie. Sprawa została zarejestrowana i zajmiemy się nią niezwłocznie.',
-  escalate: 'Pani/Pana zgłoszenie zostało eskalowane do wyższego priorytetu. Skontaktujemy się w ciągu 24 godzin.',
-  resolved: 'Informujemy, że zgłoszona sprawa została rozwiązana. W razie dalszych problemów prosimy o kontakt.',
-  info: 'W celu dalszego procedowania prosimy o podanie dodatkowych szczegółów dotyczących zgłoszenia.',
-}
-
-const applyTemplate = (key) => {
-  replyText.value = templates[key]
+const generateDraft = async (tone) => {
+  if (!selected.value) return
+  generating.value = true
+  generateError.value = ''
+  try {
+    const id = selected.value._id || selected.value.id
+    const result = await generateReply(id, tone)
+    replyText.value = result.draft
+  } catch (e) {
+    generateError.value = e.response?.status === 503
+      ? 'LLM niedostępny — brak klucza API'
+      : 'Nie udało się wygenerować odpowiedzi'
+  } finally {
+    generating.value = false
+  }
 }
 
 const sendReply = () => {
@@ -170,7 +185,14 @@ const truncate = (str, len) => str.length > len ? str.slice(0, len) + '...' : st
 const formatDate = (d) => new Date(d).toLocaleString()
 
 const fetchMessages = async () => {
-  try { messages.value = await getMessages() } catch (e) { /* ignore */ }
+  try {
+    messages.value = await getMessages()
+    const messageId = route.query.message
+    if (messageId) {
+      const msg = messages.value.find(m => (m._id || m.id) === messageId)
+      if (msg) selectMessage(msg)
+    }
+  } catch (e) { /* ignore */ }
 }
 
 onMounted(fetchMessages)
@@ -351,15 +373,47 @@ onMounted(fetchMessages)
   margin-top: 4px;
 }
 
-.compose-body textarea {
-  resize: vertical;
+.draft-label {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--success);
+  font-weight: 600;
+  margin-bottom: 4px;
+  padding: 2px 8px;
+  background: rgba(63, 185, 80, 0.1);
+  border-radius: 4px;
 }
 
-.template-chips {
+.generate-chips {
   display: flex;
   gap: 6px;
   margin-top: 4px;
   flex-wrap: wrap;
+}
+
+.generating-label {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.generate-error {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--urgent);
+  font-weight: 600;
+}
+
+.chip.loading {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.compose-body textarea {
+  resize: vertical;
 }
 
 .chip {

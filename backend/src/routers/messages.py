@@ -1,10 +1,15 @@
+import os
+
 from fastapi import APIRouter, HTTPException
 from typing import List, Optional
 from pydantic import BaseModel
 from beanie import PydanticObjectId
+from langchain_core.messages import SystemMessage, HumanMessage
 
 from ..models import Message, Briefing, TriageOverride
 from ..services import BriefingService, triage_message
+from ..core.llm import get_llm
+from ..agents.triage.prompts.draft import DRAFT_SYSTEM, DRAFT_USER
 
 
 class OverrideRequest(BaseModel):
@@ -12,6 +17,10 @@ class OverrideRequest(BaseModel):
     category: Optional[str] = None
     action: Optional[str] = None
     reason: Optional[str] = None
+
+
+class GenerateReplyRequest(BaseModel):
+    tone: Optional[str] = None  # e.g. "ack", "escalate", "resolved", "info"
 
 router = APIRouter(prefix="/api/messages", tags=["messages"])
 
@@ -85,6 +94,47 @@ async def override_triage(message_id: str, override: OverrideRequest):
         await BriefingService.invalidate()
 
     return await Message.get(PydanticObjectId(message_id))
+
+
+@router.post("/{message_id}/generate-reply")
+async def generate_reply(message_id: str, body: GenerateReplyRequest = GenerateReplyRequest()):
+    """Generate an LLM draft reply for a message on demand."""
+    if not os.environ.get("OPENAI_API_KEY"):
+        raise HTTPException(status_code=503, detail="LLM not available — OPENAI_API_KEY not set")
+
+    message = await Message.get(PydanticObjectId(message_id))
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    tone_instruction = ""
+    if body.tone == "ack":
+        tone_instruction = "\nTon: Potwierdź odbiór zgłoszenia, zapewnij że sprawa jest w toku."
+    elif body.tone == "escalate":
+        tone_instruction = "\nTon: Poinformuj o eskalacji do wyższego priorytetu, zapewnij o szybkim kontakcie."
+    elif body.tone == "resolved":
+        tone_instruction = "\nTon: Poinformuj o rozwiązaniu sprawy, zaproponuj kontakt w razie dalszych problemów."
+    elif body.tone == "info":
+        tone_instruction = "\nTon: Poproś grzecznie o dodatkowe szczegóły potrzebne do dalszego procedowania."
+
+    prompt = DRAFT_USER.format(
+        category=message.category or "ogólne",
+        priority=message.priority.value,
+        sender_type=message.sender_type.value if message.sender_type else "resident",
+        channel=message.type.value,
+        action=message.triage_action.value if message.triage_action else "standard",
+        action_reason=message.action_reason or "",
+        related_context="",
+        sender=message.sender,
+        content=message.content,
+    ) + tone_instruction
+
+    llm = get_llm(temperature=0.7)
+    response = llm.invoke([
+        SystemMessage(content=DRAFT_SYSTEM),
+        HumanMessage(content=prompt),
+    ])
+
+    return {"draft": response.content}
 
 
 @router.put("/{message_id}", response_model=Message)

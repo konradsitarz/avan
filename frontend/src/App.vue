@@ -26,10 +26,6 @@
           <span class="nav-icon">&#9993;</span>
           <span>Odpowiedzi</span>
         </router-link>
-        <router-link to="/rules" class="nav-item" active-class="active">
-          <span class="nav-icon">&#9881;</span>
-          <span>Reguły</span>
-        </router-link>
       </nav>
 
     </aside>

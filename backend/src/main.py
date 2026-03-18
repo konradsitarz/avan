@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
-from .routers import messages_router, rules_router, briefing_router, tts_router
+from .routers import messages_router, briefing_router, tts_router
 from .core import init_db
 
 @asynccontextmanager
@@ -25,7 +25,6 @@ app.add_middleware(
 
 # Include routers
 app.include_router(messages_router)
-app.include_router(rules_router)
 app.include_router(briefing_router)
 app.include_router(tts_router)
 

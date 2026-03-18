@@ -43,7 +43,7 @@ docker compose up -d
 ```
 backend/src/
 ├── core/              # Database init, shared LLM factory
-├── models/            # Message, Briefing, Rule (Beanie documents)
+├── models/            # Message, Briefing (Beanie documents)
 ├── agents/triage/     # LangGraph: classify → relate → decide → draft
 │   ├── nodes/         # Each step as a separate module
 │   └── prompts/       # LLM prompts for classify and draft
@@ -52,7 +52,7 @@ backend/src/
 └── main.py
 
 frontend/src/
-├── views/             # Briefing, Feed, Timeline, Respond, Rules
+├── views/             # Briefing, Feed, Timeline, Respond
 ├── components/        # FireBar (simulation bar)
 ├── api.js             # Axios API client
 └── App.vue            # Layout with sidebar + router
@@ -69,8 +69,6 @@ frontend/src/
 | `DELETE` | `/api/messages/{id}` | Delete message |
 | `DELETE` | `/api/messages/all` | Clear all messages + briefings (simulation reset) |
 | `GET` | `/api/briefing` | Get briefing (cached, regenerates when stale) |
-| `GET/POST` | `/api/rules` | List/create automation rules |
-| `GET/PUT/DELETE` | `/api/rules/{id}` | Single rule operations |
 
 ## Triage Agent
 
