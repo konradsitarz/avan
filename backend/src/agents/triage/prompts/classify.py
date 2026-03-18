@@ -8,13 +8,14 @@ CLASSIFY_USER = """Classify this message:
 
 From: {sender}
 Channel: {channel}
+
 Follow-ups so far: {followup_count}
 
 Message:
 {content}
 
 Priority guidelines:
-- urgent: life safety, fire, gas leak, flooding, structural danger, legal threats, 3+ follow-ups
-- high: infrastructure failure (elevator, gate, leak), repeated complaints, deadline pressure
+- urgent: ALWAYS for construction/structural failure, health hazards, anything threatening resident safety or causing significant property/financial loss. Also: fire, gas leak, flooding, water damage, any leak (pipe burst, roof leak, ceiling leak), electrical danger, building code violations, mold/asbestos exposure, legal threats, 3+ follow-ups. Water/leak issues are ALWAYS urgent because time is critical — damage escalates every minute.
+- high: infrastructure failure (elevator, gate), repeated complaints, deadline pressure, broken heating/cooling in extreme weather
 - medium: standard maintenance requests, general complaints
 - low: informational, billing questions, parking, admin requests"""

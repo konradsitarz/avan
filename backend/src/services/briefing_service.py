@@ -55,21 +55,23 @@ Write a 2-3 sentence executive briefing for the property manager. Be warm but di
 Mention the most critical situation first, then give an overall sense of the workload.
 Do NOT list individual issues — paint the big picture."""
 
-ISSUE_PROMPT = """You are briefing a property manager about this specific issue:
+ISSUE_PROMPT = """You are briefing a property manager about this issue.
 
-From: {sender}
-Channel: {channel}
-Priority: {priority}
-Follow-ups: {followup_count}
-Received: {time_label}
+Sender: {sender}
+Category: {category}
+Overall priority: {priority}
 Assigned to: {assigned_to}
 
-Original message:
-{content}
+Message timeline (oldest first):
+{timeline}
 
-Write a 1-2 sentence concierge-style brief about this issue. Explain what's happening,
-why it matters, and suggest the next step. Be human and direct. If the message is in Polish,
-summarize it in English. Don't repeat metadata — focus on the situation and what to do."""
+Write a 2-3 sentence concierge-style brief about this issue. Explain:
+1. What's happening (synthesize the full thread, not just the latest message)
+2. How it has escalated over time (if multiple messages)
+3. What the manager should do next
+
+Be human and direct. If messages are in Polish, summarize in English.
+Don't repeat metadata — focus on the situation, urgency, and recommended action."""
 
 
 # ---------------------------------------------------------------------------
@@ -100,14 +102,22 @@ def generate_issue_briefs(state: BriefingState) -> dict:
             briefs.append(issue)
             continue
 
+        # Build timeline text from all messages in this issue thread
+        timeline_entries = issue.get("timeline", [])
+        if timeline_entries:
+            timeline_text = "\n".join(
+                f"  [{entry['time_label']}] via {entry['type']}: {entry['content'][:300]}"
+                for entry in timeline_entries
+            )
+        else:
+            timeline_text = f"  [{issue['time_label']}] via {issue['type']}: {issue['content'][:300]}"
+
         prompt = ISSUE_PROMPT.format(
             sender=issue["sender"],
-            channel=issue["type"],
+            category=issue.get("category") or "uncategorized",
             priority=issue["priority"],
-            followup_count=issue["followup_count"],
-            time_label=issue["time_label"],
             assigned_to=issue.get("assigned_to") or "Nobody (unassigned)",
-            content=issue["content"],
+            timeline=timeline_text,
         )
         response = llm.invoke([
             SystemMessage(content=SYSTEM_PROMPT),
@@ -139,18 +149,19 @@ class BriefingService:
     @staticmethod
     async def invalidate():
         """Mark the latest cached briefing as stale."""
-        latest = await Briefing.find_one(sort_expression=[("-generated_at", -1)])
-        if latest and not latest.stale:
+        latest = await Briefing.find(
+            Briefing.stale == False,  # noqa: E712
+        ).sort("-generated_at").first_or_none()
+        if latest:
             latest.stale = True
             await latest.save()
 
     @staticmethod
     async def get_briefing() -> dict:
         """Return cached briefing if fresh, otherwise regenerate."""
-        cached = await Briefing.find_one(
+        cached = await Briefing.find(
             Briefing.stale == False,  # noqa: E712
-            sort_expression=[("-generated_at", -1)],
-        )
+        ).sort("-generated_at").first_or_none()
         if cached:
             return {
                 "generated_at": cached.generated_at.isoformat(),
@@ -182,7 +193,8 @@ class BriefingService:
             messages, key=lambda m: (priority_order.get(m.priority.value, 99), m.created_at)
         )
 
-        items = [BriefingService._build_item(m, now) for m in sorted_messages]
+        grouped_messages = BriefingService._group_messages(sorted_messages)
+        items = [BriefingService._build_item(m, now, related) for m, related in grouped_messages]
         stats = BriefingService._build_stats(messages)
 
         # Try LLM generation
@@ -215,10 +227,11 @@ class BriefingService:
         """Run the LangGraph briefing agent."""
         messages_text = ""
         for item in items:
-            messages_text += (
-                f"[{item['priority'].upper()}] From {item['sender']} via {item['type']} "
-                f"({item['time_label']}): {item['content'][:200]}\n"
-            )
+            msg_count = item.get("message_count", 1)
+            label = f"[{item['priority'].upper()}] {item.get('category', '?')} — {item['sender']}"
+            if msg_count > 1:
+                label += f" ({msg_count} messages)"
+            messages_text += f"{label}: {item['content'][:200]}\n"
 
         initial_state: BriefingState = {
             "messages_text": messages_text,
@@ -249,31 +262,96 @@ class BriefingService:
         await briefing.insert()
 
     @staticmethod
-    def _build_item(m: Message, now: datetime) -> dict:
-        age = now - m.created_at
-        if age < timedelta(hours=1):
-            time_label = "just now"
-        elif age < timedelta(hours=2):
-            time_label = "about an hour ago"
-        elif age < timedelta(hours=24):
-            time_label = f"{int(age.total_seconds() / 3600)} hours ago"
-        elif age < timedelta(days=2):
-            time_label = "yesterday"
-        else:
-            time_label = f"{int(age.total_seconds() / 86400)} days ago"
+    def _group_messages(messages: list[Message]) -> list[tuple[Message, list[Message]]]:
+        """
+        Group messages by (sender, category) into issue threads.
+        Each group becomes one briefing issue. The primary message is the one
+        with the highest priority (or latest if tied). Related messages form
+        the timeline.
 
-        return {
+        Messages without a category fall back to sender-only grouping.
+        """
+        groups: dict[str, list[Message]] = {}
+
+        for m in messages:
+            key = f"{m.sender}||{m.category or 'uncategorized'}"
+            groups.setdefault(key, []).append(m)
+
+        priority_order = {"urgent": 0, "high": 1, "medium": 2, "low": 3}
+        result = []
+
+        for group_msgs in groups.values():
+            # Sort by time (oldest first) for timeline
+            group_msgs.sort(key=lambda m: m.created_at)
+            # Primary = highest priority message (latest if tied)
+            primary = max(
+                group_msgs,
+                key=lambda m: (-priority_order.get(m.priority.value, 99), m.created_at),
+            )
+            related = [m for m in group_msgs if m.id != primary.id]
+            result.append((primary, related))
+
+        # Sort groups by priority of primary (urgent first)
+        result.sort(key=lambda t: (priority_order.get(t[0].priority.value, 99), t[0].created_at))
+
+        return result
+
+    @staticmethod
+    def _time_label(created_at: datetime, now: datetime) -> str:
+        created = created_at.replace(tzinfo=timezone.utc) if created_at.tzinfo is None else created_at
+        age = now - created
+        if age < timedelta(hours=1):
+            return "just now"
+        elif age < timedelta(hours=2):
+            return "about an hour ago"
+        elif age < timedelta(hours=24):
+            return f"{int(age.total_seconds() / 3600)} hours ago"
+        elif age < timedelta(days=2):
+            return "yesterday"
+        else:
+            return f"{int(age.total_seconds() / 86400)} days ago"
+
+    @staticmethod
+    def _build_item(m: Message, now: datetime, related: list[Message] | None = None) -> dict:
+        # Build timeline: all messages in this issue thread, sorted oldest first
+        all_messages = sorted(
+            [m] + (related or []),
+            key=lambda msg: msg.created_at,
+        )
+
+        timeline = []
+        for msg in all_messages:
+            timeline.append({
+                "id": str(msg.id),
+                "content": msg.content,
+                "type": msg.type.value,
+                "priority": msg.priority.value,
+                "time_label": BriefingService._time_label(msg.created_at, now),
+                "created_at": msg.created_at.isoformat(),
+                "action_reason": msg.action_reason,
+            })
+
+        # Total follow-ups across the thread
+        total_followups = sum(msg.followup_count for msg in all_messages)
+
+        item = {
             "id": str(m.id),
             "sender": m.sender.strip(),
-            "content": m.content,
+            "content": m.content,  # primary message content
             "priority": m.priority.value,
             "type": m.type.value,
-            "time_label": time_label,
+            "time_label": BriefingService._time_label(m.created_at, now),
             "created_at": m.created_at.isoformat(),
             "assigned_to": m.assigned_to,
-            "followup_count": m.followup_count,
+            "followup_count": total_followups,
+            "category": m.category,
+            "action_reason": m.action_reason,
             "llm_brief": None,
+            "message_count": len(all_messages),
+            "timeline": timeline,
         }
+
+        return item
 
     @staticmethod
     def _build_stats(messages: list) -> dict:

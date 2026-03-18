@@ -1,167 +1,144 @@
-# Nava - Property Management Triage System
+# Nava — AI-Native Property Management Triage
 
-AI-native property management platform for residential managers in Eastern Central Europe. Triages issues from locators through multiple channels (email, SMS, voice), with automatic prioritization and escalation.
+Intelligent triage system for residential property managers in Eastern Central Europe. Nava processes incoming messages from residents via email, SMS, and voice — classifying, grouping, and prioritizing them using LLM-powered agents so the manager sees a clear briefing instead of raw noise.
 
-## Features
+## What It Does
 
-- Multi-channel message intake (Email, SMS, Voice)
-- Automatic priority assignment
-- Auto-escalation rules (3rd follow-up increases priority)
-- Message tracking and management
-- Admin notifications for urgent issues
+1. **Messages come in** from residents (email, SMS, voice transcription)
+2. **Triage agent** classifies each message: category, priority, sender type
+3. **Relates** to existing tickets from the same sender/category
+4. **Decides** action: escalate, group with existing issue, or standard handling
+5. **Drafts** a channel-appropriate response (skipped for escalations — admin decides)
+6. **Briefing** groups related messages into issue threads with timelines and LLM-written summaries
+
+## Quick Start
+
+```bash
+# Clone and start
+git clone <repository-url>
+cd nava
+
+# Optional: set OpenAI key for LLM-powered triage (works without it using regex fallback)
+echo "OPENAI_API_KEY=sk-..." > .env
+
+# Start everything
+docker compose up -d
+```
+
+- Frontend: http://localhost:5173
+- API docs: http://localhost:8000/docs
+- Health check: http://localhost:8000/api/health
 
 ## Tech Stack
 
-**Backend:**
-- FastAPI (Python)
-- MongoDB with Beanie ODM
-- Motor (async MongoDB driver)
-- UV for package management
-
-**Frontend:**
-- Vue 3
-- Vite
-- Axios
-
-**Infrastructure:**
-- Docker & Docker Compose
-- MongoDB
+| Layer | Stack |
+|-------|-------|
+| **Backend** | Python 3.14, FastAPI, Beanie ODM, MongoDB, LangGraph + LangChain |
+| **Frontend** | Vue 3 (Composition API), Vite, Axios |
+| **LLM** | OpenAI GPT-4o-mini (configurable via `LLM_MODEL`) |
+| **Infra** | Docker Compose (MongoDB, backend, frontend) |
 
 ## Project Structure
 
 ```
-nava/
-├── backend/
-│   ├── src/
-│   │   ├── models/
-│   │   │   ├── __init__.py
-│   │   │   └── message.py
-│   │   ├── routers/
-│   │   │   ├── __init__.py
-│   │   │   └── messages.py
-│   │   ├── __init__.py
-│   │   ├── database.py
-│   │   └── main.py
-│   ├── Dockerfile
-│   └── pyproject.toml
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   └── MessageList.vue
-│   │   ├── App.vue
-│   │   └── main.js
-│   ├── Dockerfile
-│   ├── index.html
-│   ├── package.json
-│   └── vite.config.js
-└── docker-compose.yml
+backend/src/
+├── core/              # Database init, shared LLM factory
+├── models/            # Message, Briefing, Rule (Beanie documents)
+├── agents/triage/     # LangGraph: classify → relate → decide → draft
+│   ├── nodes/         # Each step as a separate module
+│   └── prompts/       # LLM prompts for classify and draft
+├── services/          # BriefingService (cached + grouped), TriageService
+├── routers/           # Thin HTTP endpoints
+└── main.py
+
+frontend/src/
+├── views/             # Briefing, Feed, Timeline, Respond, Rules
+├── components/        # FireBar (simulation bar)
+├── api.js             # Axios API client
+└── App.vue            # Layout with sidebar + router
 ```
 
-## Getting Started
+## API
 
-### Prerequisites
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/messages` | Create message (runs triage agent) |
+| `GET` | `/api/messages` | List all messages |
+| `GET` | `/api/messages/{id}` | Get single message |
+| `PUT` | `/api/messages/{id}` | Update message |
+| `DELETE` | `/api/messages/{id}` | Delete message |
+| `DELETE` | `/api/messages/all` | Clear all messages + briefings (simulation reset) |
+| `GET` | `/api/briefing` | Get briefing (cached, regenerates when stale) |
+| `GET/POST` | `/api/rules` | List/create automation rules |
+| `GET/PUT/DELETE` | `/api/rules/{id}` | Single rule operations |
 
-- Docker & Docker Compose
-- Git
+## Triage Agent
 
-### Installation
+LangGraph workflow with conditional edges:
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd nava
+```
+classify → relate → decide
+                      ├── escalate  → END (no draft, admin decides)
+                      ├── group     → draft → END
+                      └── standard  → draft → END
 ```
 
-2. Start the services:
-```bash
-docker-compose up -d
-```
+- **classify**: LLM with structured output (Pydantic) → category, priority, sender_type
+- **relate**: DB lookup for related tickets by sender + category
+- **decide**: Rule-based escalation (urgent/safety/plumbing/electrical/compliance/3+ followups)
+- **draft**: LLM generates response appropriate for the channel (SMS = 160 chars, email = 2-4 sentences)
 
-This will start:
-- MongoDB on `localhost:27017`
-- Backend API on `http://localhost:8000`
-- Frontend on `http://localhost:5173`
+### Priority Rules
 
-3. Access the application:
-- Frontend: http://localhost:5173
-- API Documentation: http://localhost:8000/docs
-- API Health Check: http://localhost:8000/api/health
+| Priority | When |
+|----------|------|
+| **Urgent** | Safety, construction failure, water/leak damage, gas, fire, electrical, health hazards, mold, building code violations, legal threats, 3+ follow-ups |
+| **High** | Elevator/gate failure, repeated complaints, deadline pressure, HVAC in extreme weather |
+| **Medium** | Standard maintenance, general complaints |
+| **Low** | Billing, parking, admin, informational |
 
-### Development
+## Briefing
 
-**Backend (with uv):**
+Messages are grouped by **(sender + category)** into issue threads. Each issue shows:
+- LLM-written brief synthesizing the full thread
+- Triage reasoning (why this priority/action was chosen)
+- Timeline of all messages in the thread
+- Category, priority, assignment status
 
-```bash
-cd backend
+Briefings are cached in MongoDB and only regenerated when messages change.
 
-# Install dependencies
-uv sync
+## Simulation
 
-# Run development server
-uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
-```
+The app includes a built-in simulation bar (bottom of screen) for testing:
+- **Magazine**: Pre-loaded Polish property management messages
+- **Fire modes**: Single, burst (3), auto-fire with configurable rate
+- **Custom compose**: Send arbitrary messages through the triage pipeline
+- **Clear all**: Reset DB for fresh simulation runs
+- **Simulated clock**: Shows time progression as messages arrive
 
-**Frontend:**
-
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
-```
-
-## API Endpoints
-
-### Messages
-
-- `GET /api/messages` - List all messages
-- `POST /api/messages` - Create a new message
-- `GET /api/messages/{id}` - Get a specific message
-- `PUT /api/messages/{id}` - Update a message
-- `DELETE /api/messages/{id}` - Delete a message
-
-### Health
-
-- `GET /` - API status
-- `GET /api/health` - Health check
-
-## Message Model
-
-```json
-{
-  "type": "email|sms|voice",
-  "sender": "string",
-  "content": "string",
-  "priority": "low|medium|high|urgent",
-  "followup_count": 0,
-  "created_at": "ISO 8601 datetime",
-  "assigned_to": "string (optional)"
-}
-```
-
-## Auto-Escalation Rules
-
-- Messages with `followup_count >= 3` are automatically escalated to URGENT priority
-- Timezone-aware timestamps (UTC)
-
-## Stopping the Application
+## Development
 
 ```bash
-docker-compose down
+# Backend (local)
+cd backend && uv sync && uv run uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
+
+# Frontend (local)
+cd frontend && npm install && npm run dev
+
+# Rebuild after backend changes
+docker compose up -d --build backend
 ```
 
-To remove volumes (database data):
-```bash
-docker-compose down -v
-```
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `MONGODB_URL` | `mongodb://mongodb:27017` | MongoDB connection string |
+| `DATABASE_NAME` | `nava` | Database name |
+| `VITE_API_URL` | `http://localhost:8000` | Backend URL for frontend |
+| `OPENAI_API_KEY` | — | Required for LLM triage/briefing |
+| `LLM_MODEL` | `gpt-4o-mini` | OpenAI model to use |
 
 ## License
 
-Proprietary - Nava Property Management
-
-## Support
-
-For issues and questions, contact the development team.
+Proprietary — Nava Property Management

@@ -32,24 +32,6 @@
         </router-link>
       </nav>
 
-      <div class="sidebar-stats" v-if="stats">
-        <div class="stat">
-          <span class="stat-value">{{ stats.total }}</span>
-          <span class="stat-label">Total</span>
-        </div>
-        <div class="stat stat-urgent">
-          <span class="stat-value">{{ stats.urgent }}</span>
-          <span class="stat-label">Urgent</span>
-        </div>
-        <div class="stat stat-high">
-          <span class="stat-value">{{ stats.high }}</span>
-          <span class="stat-label">High</span>
-        </div>
-        <div class="stat stat-unassigned">
-          <span class="stat-value">{{ stats.unassigned }}</span>
-          <span class="stat-label">Unassigned</span>
-        </div>
-      </div>
     </aside>
 
     <main class="main-content">
@@ -61,27 +43,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { getMessages } from './api.js'
 import FireBar from './components/FireBar.vue'
-
-const stats = ref(null)
-
-const loadStats = async () => {
-  try {
-    const messages = await getMessages()
-    stats.value = {
-      total: messages.length,
-      urgent: messages.filter(m => m.priority === 'urgent').length,
-      high: messages.filter(m => m.priority === 'high').length,
-      unassigned: messages.filter(m => !m.assigned_to).length,
-    }
-  } catch (e) {
-    stats.value = { total: 0, urgent: 0, high: 0, unassigned: 0 }
-  }
-}
-
-onMounted(loadStats)
 </script>
 
 <style>
@@ -207,39 +169,6 @@ body {
   width: 20px;
   text-align: center;
 }
-
-.sidebar-stats {
-  padding: 16px;
-  border-top: 1px solid var(--border);
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-}
-
-.stat {
-  background: var(--bg-card);
-  padding: 10px;
-  border-radius: 6px;
-  text-align: center;
-}
-
-.stat-value {
-  display: block;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.stat-label {
-  font-size: 10px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.stat-urgent .stat-value { color: var(--urgent); }
-.stat-high .stat-value { color: var(--high); }
-.stat-unassigned .stat-value { color: var(--medium); }
 
 .main-content {
   margin-left: var(--sidebar-width);

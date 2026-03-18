@@ -9,6 +9,7 @@ export const getMessage = (id) => api.get(`/api/messages/${id}`).then(r => r.dat
 export const createMessage = (msg) => api.post('/api/messages', msg).then(r => r.data)
 export const updateMessage = (id, msg) => api.put(`/api/messages/${id}`, msg).then(r => r.data)
 export const deleteMessage = (id) => api.delete(`/api/messages/${id}`).then(r => r.data)
+export const deleteAllMessages = () => api.delete('/api/messages/all').then(r => r.data)
 
 export const getBriefing = () => api.get('/api/briefing').then(r => r.data)
 

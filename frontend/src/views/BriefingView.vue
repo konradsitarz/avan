@@ -71,7 +71,11 @@
 
           <div class="issue-meta">
             <span class="badge" :class="`badge-${currentIssue.priority}`">{{ currentIssue.priority }}</span>
+            <span class="badge badge-category" v-if="currentIssue.category">{{ currentIssue.category }}</span>
             <span class="badge" :class="`badge-${currentIssue.type}`">{{ currentIssue.type }}</span>
+            <span class="issue-msg-count" v-if="currentIssue.message_count > 1">
+              {{ currentIssue.message_count }} messages
+            </span>
             <span class="issue-time">{{ currentIssue.time_label }}</span>
           </div>
 
@@ -86,10 +90,34 @@
             <p>{{ currentIssue.llm_brief }}</p>
           </div>
 
-          <!-- Original message -->
-          <div class="issue-original">
-            <label>Original message</label>
-            <p>{{ currentIssue.content }}</p>
+          <!-- Triage reasoning -->
+          <div v-if="currentIssue.action_reason" class="issue-reasoning">
+            <label>Triage reasoning</label>
+            <p>{{ currentIssue.action_reason }}</p>
+          </div>
+
+          <!-- Timeline -->
+          <div class="issue-timeline" v-if="currentIssue.timeline && currentIssue.timeline.length > 0">
+            <label>Timeline</label>
+            <div class="timeline-list">
+              <div
+                v-for="(entry, idx) in currentIssue.timeline"
+                :key="entry.id"
+                class="timeline-entry"
+              >
+                <div class="timeline-dot-line">
+                  <div class="timeline-dot" :class="`dot-${entry.priority}`"></div>
+                  <div v-if="idx < currentIssue.timeline.length - 1" class="timeline-line"></div>
+                </div>
+                <div class="timeline-body">
+                  <div class="timeline-meta">
+                    <span class="badge badge-sm" :class="`badge-${entry.type}`">{{ entry.type }}</span>
+                    <span class="timeline-time">{{ entry.time_label }}</span>
+                  </div>
+                  <p class="timeline-content">{{ entry.content }}</p>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="issue-details">
@@ -470,6 +498,117 @@ onMounted(fetchBriefing)
   border-radius: 8px;
   margin-top: 6px;
   max-height: 200px;
+  overflow-y: auto;
+}
+
+/* Message count badge */
+.issue-msg-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  padding: 2px 8px;
+  background: rgba(88, 166, 255, 0.08);
+  border-radius: 10px;
+}
+
+/* Category badge */
+.badge-category {
+  background: rgba(63, 185, 80, 0.12);
+  color: var(--success);
+}
+
+/* Triage reasoning */
+.issue-reasoning {
+  padding: 0 24px;
+  margin-bottom: 12px;
+}
+
+.issue-reasoning p {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  line-height: 1.5;
+  padding: 8px 12px;
+  background: rgba(210, 153, 34, 0.06);
+  border-left: 2px solid var(--high);
+  border-radius: 0 6px 6px 0;
+  margin-top: 4px;
+}
+
+/* Timeline */
+.issue-timeline {
+  padding: 0 24px;
+  margin-bottom: 16px;
+}
+
+.timeline-list {
+  margin-top: 8px;
+}
+
+.timeline-entry {
+  display: flex;
+  gap: 12px;
+}
+
+.timeline-dot-line {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 12px;
+  flex-shrink: 0;
+}
+
+.timeline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.timeline-dot.dot-urgent { background: var(--urgent); }
+.timeline-dot.dot-high { background: var(--high); }
+.timeline-dot.dot-medium { background: var(--medium); }
+.timeline-dot.dot-low { background: var(--low); }
+
+.timeline-line {
+  width: 2px;
+  flex: 1;
+  background: var(--border);
+  min-height: 16px;
+}
+
+.timeline-body {
+  flex: 1;
+  padding-bottom: 16px;
+}
+
+.timeline-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.badge-sm {
+  font-size: 9px;
+  padding: 1px 6px;
+}
+
+.timeline-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.timeline-content {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  padding: 8px 12px;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  max-height: 120px;
   overflow-y: auto;
 }
 

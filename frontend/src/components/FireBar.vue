@@ -1,5 +1,11 @@
 <template>
-  <div class="firebar">
+  <!-- Toggle tab — always visible at bottom -->
+  <button class="firebar-toggle" :class="{ open: isOpen }" @click="isOpen = !isOpen">
+    <span class="toggle-icon">{{ isOpen ? '&#9660;' : '&#9650;' }}</span>
+    <span class="toggle-label">Simulation</span>
+  </button>
+
+  <div class="firebar" :class="{ collapsed: !isOpen }">
     <div class="firebar-clock">
       <svg class="clock-face" viewBox="0 0 100 100">
         <!-- Dial -->
@@ -98,6 +104,44 @@
       <button class="fire-btn reload-btn" @click="reload" title="Reload magazine">
         <span class="fire-icon">&#8635;</span>
       </button>
+      <button class="fire-btn clear-btn" @click="clearAll" title="Clear all messages">
+        <span class="fire-icon">&#10005;</span>
+      </button>
+    </div>
+
+    <div class="firebar-compose" :class="{ expanded: composeOpen }">
+      <button class="fire-btn compose-toggle" @click="composeOpen = !composeOpen" title="Send custom message">
+        <span class="fire-icon">&#9998;</span>
+      </button>
+      <div v-if="composeOpen" class="compose-form">
+        <select v-model="customMsg.type" class="compose-select">
+          <option value="email">email</option>
+          <option value="sms">sms</option>
+          <option value="voice">voice</option>
+        </select>
+        <input
+          v-model="customMsg.sender"
+          class="compose-input compose-sender"
+          placeholder="Sender"
+        />
+        <input
+          v-model="customMsg.content"
+          class="compose-input compose-content"
+          placeholder="Message content..."
+          @keyup.enter="sendCustom"
+        />
+        <input
+          v-model.number="customMsg.followup_count"
+          class="compose-input compose-followup"
+          type="number"
+          min="0"
+          placeholder="#"
+          title="Follow-up count"
+        />
+        <button class="fire-btn" @click="sendCustom" :disabled="!customMsg.content || sending">
+          <span class="fire-icon">&#9658;</span>
+        </button>
+      </div>
     </div>
 
     <div class="firebar-stats">
@@ -112,7 +156,38 @@
 
 <script setup>
 import { ref, reactive, onUnmounted, computed } from 'vue'
-import { createMessage } from '../api.js'
+import { createMessage, deleteAllMessages } from '../api.js'
+
+const isOpen = ref(false)
+const composeOpen = ref(false)
+const sending = ref(false)
+const customMsg = reactive({
+  type: 'email',
+  sender: '',
+  content: '',
+  followup_count: 0,
+})
+
+const sendCustom = async () => {
+  if (!customMsg.content || sending.value) return
+  sending.value = true
+  try {
+    const result = await createMessage({
+      type: customMsg.type,
+      sender: customMsg.sender || 'test@simulation.local',
+      content: customMsg.content,
+      followup_count: customMsg.followup_count,
+    })
+    const p = result.priority || 'medium'
+    stats[p]++
+    stats.total++
+    customMsg.content = ''
+  } catch (e) {
+    // ignore
+  } finally {
+    sending.value = false
+  }
+}
 
 // Messages arrive RAW — no priority. The backend triage engine classifies them.
 const MAGAZINE = [
@@ -293,12 +368,66 @@ const reload = () => {
   }
 }
 
+const clearAll = async () => {
+  try {
+    await deleteAllMessages()
+  } catch (e) {
+    // ignore — best effort
+  }
+  reload()
+}
+
 onUnmounted(() => {
   if (autoTimer) clearInterval(autoTimer)
 })
 </script>
 
 <style scoped>
+.firebar-toggle {
+  position: fixed;
+  bottom: 0;
+  left: calc(var(--sidebar-width, 240px) + 50%);
+  transform: translateX(-50%);
+  z-index: 201;
+  background: #0a0d11;
+  border: 1px solid #1a1f27;
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+  padding: 4px 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: #6e7681;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  transition: all 0.2s;
+}
+
+.firebar-toggle:hover {
+  color: #8b949e;
+  background: #161b22;
+}
+
+.firebar-toggle.open {
+  bottom: 56px;
+}
+
+.toggle-icon {
+  font-size: 8px;
+}
+
+.firebar.collapsed {
+  transform: translateY(100%);
+  pointer-events: none;
+}
+
+.firebar {
+  transition: transform 0.25s ease;
+}
+
 .firebar-clock {
   display: flex;
   align-items: center;
@@ -563,6 +692,15 @@ onUnmounted(() => {
   font-size: 14px;
 }
 
+.clear-btn {
+  border-color: #f85149 !important;
+  color: #f85149 !important;
+}
+
+.clear-btn:hover:not(:disabled) {
+  background: rgba(248, 81, 73, 0.2) !important;
+}
+
 .rate-control {
   display: flex;
   align-items: center;
@@ -596,6 +734,64 @@ onUnmounted(() => {
   background: #58a6ff;
   border-radius: 50%;
   cursor: pointer;
+}
+
+.firebar-compose {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border-left: 1px solid #1a1f27;
+  height: 100%;
+}
+
+.compose-toggle {
+  flex-shrink: 0;
+}
+
+.compose-form {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.compose-select {
+  width: 62px;
+  padding: 4px 4px;
+  font-size: 10px;
+  font-family: 'Courier New', monospace;
+  background: #161b22;
+  border: 1px solid #2d333b;
+  border-radius: 4px;
+  color: #8b949e;
+}
+
+.compose-input {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-family: 'Courier New', monospace;
+  background: #161b22;
+  border: 1px solid #2d333b;
+  border-radius: 4px;
+  color: #e1e4e8;
+}
+
+.compose-input:focus {
+  border-color: #58a6ff;
+  box-shadow: none;
+}
+
+.compose-sender {
+  width: 120px;
+}
+
+.compose-content {
+  width: 200px;
+}
+
+.compose-followup {
+  width: 40px;
+  text-align: center;
 }
 
 .firebar-stats {

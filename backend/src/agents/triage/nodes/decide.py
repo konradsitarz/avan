@@ -24,10 +24,10 @@ def decide(state: dict) -> dict:
             "group_with": group_with,
         }
 
-    if category == "safety":
+    if category in ("safety", "electrical", "compliance", "plumbing"):
         return {
             "action": "escalate",
-            "action_reason": "Safety-related issue flagged for immediate review.",
+            "action_reason": f"{category.capitalize()} issue — potential hazard, flagged for immediate review.",
             "group_with": group_with,
         }
 

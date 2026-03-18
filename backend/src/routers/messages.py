@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from typing import List
 from beanie import PydanticObjectId
 
-from ..models import Message
+from ..models import Message, Briefing
 from ..services import BriefingService, triage_message
 
 router = APIRouter(prefix="/api/messages", tags=["messages"])
@@ -43,6 +43,14 @@ async def update_message(message_id: str, updated_data: Message):
 
     await BriefingService.invalidate()
     return message
+
+@router.delete("/all")
+async def delete_all_messages():
+    """Clear all messages and cached briefings — for simulation resets."""
+    await Message.delete_all()
+    await Briefing.delete_all()
+    return {"message": "All messages and briefings cleared"}
+
 
 @router.delete("/{message_id}")
 async def delete_message(message_id: str):
