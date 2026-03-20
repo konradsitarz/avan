@@ -39,6 +39,27 @@ Each agent has:
 
 **When to do it:** when the need arises — e.g. async execution (classify fast, draft in background), A/B testing prompts per agent, or different models per agent (cheap model for classify, expensive for draft).
 
+## Metrics
+
+### System metrics (engineering health)
+
+- **Triage accuracy** — % of messages where the manager does not override the agent's decision. Measured implicitly via override rate. Target: >85% without correction after ~50 overrides per building.
+- **Pipeline latency** — time from message intake to completed briefing entry. Current state: synchronous, visible lag on burst. Target: <3s per message with async processing.
+- **Cost per ticket** — GPT-4o-mini + selective cross-sender LLM calls. Trackable per building per month. Critical input for pricing model.
+- **Grouping precision** — ratio of correctly merged threads vs false positives. No automated measure yet; "ungroup" override is the implicit signal. Target: track ungroup rate as a proxy.
+- **Escalation recall** — are all safety-critical messages being escalated? False negatives here are the highest-risk failure mode. Target: zero missed escalations on the defined ruleset.
+
+### Business metrics (value for the customer)
+
+- **Manager triage time** — before Nava: 45–60 min every morning reading and sorting raw messages. After Nava: 5–10 min reviewing the briefing and approving actions. This is the number that sells the product.
+- **Time to first response (TTR)** — average time between a resident message and a manager reply. Draft responses + clear priority = faster reaction. Measurable once outbound channel integration exists.
+- **Critical issues caught** — escalations flagged by Nava that would have been buried in noise. One missed water leak = repair cost + tenant churn. One caught escalation = months of subscription ROI.
+- **Per-building learning curve** — how many overrides until accuracy stabilizes. This is the argument for long-term contracts: the system gets better the longer it runs for a specific building. Target: measure accuracy delta at 10 / 50 / 200 overrides.
+
+### On ground truth
+
+The override loop is not just a UX feature — it is the ground truth collection mechanism. Every manager correction is a labeled example. This means accuracy measurement is a byproduct of normal product usage, not a separate data collection effort. At scale, override history becomes the dataset for fine-tuning or retrieval-augmented few-shot selection.
+
 ## What's Next
 
 - Resident CRM: map phone/email → resident → unit → building
@@ -46,7 +67,6 @@ Each agent has:
 - NLU module for voice channel (transcription + intent extraction from incoming calls)
 - Multi-tenant: each building has its own context, history, communication style
 - Per-building learning: admin overrides improve classification for that building only — not globally
-- Metrics: response time, triage accuracy, cost per ticket per building
 - Assignment engine (auto-assign to maintenance staff based on category)
 - Notification channels (push to manager's phone for urgent escalations)
 - CEE multilingual: PL/EN/UA/RO — draft in sender's language, admin interface in their language. Not just translation — cultural context.
