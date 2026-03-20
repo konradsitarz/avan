@@ -76,7 +76,23 @@ The override loop is not just a UX feature — it is the ground truth collection
 
 ## Hard Problems
 
-- **M&A integration:** every acquired company has different processes, different historical data, different category naming, different SLAs. System must adapt to a new building in <1 day — onboarding can't require manual rule configuration. Requires: auto-discovery of categories from historical data, ticket migration from legacy systems, per-building prompt tuning without regression on other buildings.
+- **M&A integration:** every acquired company has different processes, different historical data, different category naming, different SLAs. System must adapt to a new building in <1 day — onboarding can't require manual rule configuration.
+
+  The onboarding pipeline has three layers:
+  1. **Auto-discovery** — ingest historical tickets (CSV, legacy system export, email archive) and cluster them into candidate categories using LLM. Manager reviews and confirms in a single session, not weeks of configuration.
+  2. **Ticket migration** — historical tickets become the first few-shot examples for that building. The system starts with prior knowledge, not a cold start.
+  3. **Per-building prompt tuning** — each building gets its own override store and few-shot bank. Tuning one building must not regress others. Isolation is enforced at the data layer, not the model layer.
+
+  This is the core growth engine for an M&A-driven rollup strategy: acquire a property management company, onboard their portfolio in <1 day, immediately deliver value without manual re-configuration.
+
+- **Multi-tenant scaling:** one building is a prototype. One thousand buildings is a product. The architectural assumptions that work at 1 break silently at 100.
+
+  Key problems at scale:
+  - **Data isolation** — per-building few-shot store, override history, resident CRM. No cross-contamination. Tenant boundary must be enforced at the DB layer (separate collections or strict tenant_id filtering), not application logic.
+  - **Cost attribution** — LLM cost per building per month. Required for per-building pricing, for identifying unprofitable tenants, and for capacity planning.
+  - **SLA monitoring per building** — different buildings have different contractual response times. System must surface SLA breaches per building, not globally.
+  - **Prompt versioning** — when you improve the classify prompt, you need to A/B test it across a subset of buildings before rolling out globally. One bad prompt change can't degrade all tenants simultaneously.
+  - **Operational overhead** — at 1000 buildings, manual intervention per building is impossible. Onboarding, model updates, and incident response must be fully automated or at minimum self-service.
 
 - **Latency / streaming:** Triage runs synchronously — the UI blocks until the full classify→relate→decide→draft pipeline completes. No SSE or WebSocket feedback. At scale (burst of 20+ messages), this becomes a UX problem: manager fires messages and waits with no progress indication. Target: async triage with streaming status updates.
 
