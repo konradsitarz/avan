@@ -2,10 +2,10 @@
   <div class="admin-layout">
     <aside class="sidebar">
       <div class="sidebar-brand">
-        <div class="brand-icon">N</div>
+        <div class="brand-icon">A</div>
         <div class="brand-text">
-          <span class="brand-name">Nava</span>
-          <span class="brand-sub">Panel zarządzania</span>
+          <span class="brand-name">Avan</span>
+          <span class="brand-sub">Management panel</span>
         </div>
       </div>
 
@@ -16,15 +16,15 @@
         </router-link>
         <router-link to="/feed" class="nav-item" active-class="active">
           <span class="nav-icon">&#9888;</span>
-          <span>Zgłoszenia</span>
+          <span>Issues</span>
         </router-link>
         <router-link to="/timeline" class="nav-item" active-class="active">
           <span class="nav-icon">&#128339;</span>
-          <span>Oś czasu</span>
+          <span>Timeline</span>
         </router-link>
         <router-link to="/respond" class="nav-item" active-class="active">
           <span class="nav-icon">&#9993;</span>
-          <span>Odpowiedzi</span>
+          <span>Responses</span>
         </router-link>
       </nav>
 

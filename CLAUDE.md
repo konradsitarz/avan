@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Nava is an AI-native property management triage system for residential managers in Eastern Central Europe. It triages issues from locators via email, SMS, and voice using LLM-powered agents (LangGraph + LangChain) with automatic prioritization, grouping, and escalation.
+Avan is an AI-native property management triage system for residential managers. It triages issues from residents via email, SMS, and voice using LLM-powered agents (LangGraph + LangChain) with automatic prioritization, grouping, and escalation.
 
 ## Commands
 
@@ -67,7 +67,7 @@ backend/src/
 - FireBar simulation component: collapsible bottom bar with message firing, custom compose, and clear all
 - API base URL configured via `VITE_API_URL` env var (fallback: `http://localhost:8000`)
 - Pinia stores for messages and briefing state
-- Polish display labels via `labels.js` (enum values stay English internally)
+- Display labels via `labels.js` (enum values match labels)
 
 ### Key Agents
 
@@ -109,7 +109,7 @@ Urgency × importance map to Eisenhower quadrants for briefing sort order:
 
 See `.env.example`. Key vars:
 - `MONGODB_URL` — MongoDB connection string (default: `mongodb://mongodb:27017`)
-- `DATABASE_NAME` — Database name (default: `nava`)
+- `DATABASE_NAME` — Database name (default: `avan`)
 - `VITE_API_URL` — Backend URL for frontend (default: `http://localhost:8000`)
 - `OPENAI_API_KEY` — Required for LLM-powered triage and briefing (falls back to regex without it)
 - `LLM_MODEL` — Model to use (default: `gpt-4o-mini`)

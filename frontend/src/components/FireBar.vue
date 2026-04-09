@@ -2,7 +2,7 @@
   <!-- Toggle tab — always visible at bottom -->
   <button class="firebar-toggle" :class="{ open: isOpen }" @click="isOpen = !isOpen">
     <span class="toggle-icon">{{ isOpen ? '&#9660;' : '&#9650;' }}</span>
-    <span class="toggle-label">Symulacja</span>
+    <span class="toggle-label">Simulation</span>
   </button>
 
   <div class="firebar" :class="{ collapsed: !isOpen }">
@@ -82,10 +82,10 @@
     </div>
 
     <div class="firebar-right">
-      <button class="fire-btn" @click="fireSingle" :disabled="currentIndex >= magazine.length" title="Wyślij jedną">
+      <button class="fire-btn" @click="fireSingle" :disabled="currentIndex >= magazine.length" title="Send one">
         <span class="fire-icon">&#9658;</span>
       </button>
-      <button class="fire-btn burst-btn" @click="fireBurst" :disabled="currentIndex >= magazine.length" title="Seria (3 sztuki)">
+      <button class="fire-btn burst-btn" @click="fireBurst" :disabled="currentIndex >= magazine.length" title="Burst (3 messages)">
         <span class="fire-icon">&#9658;&#9658;&#9658;</span>
       </button>
       <button
@@ -93,7 +93,7 @@
         :class="{ active: autoFiring }"
         @click="toggleAuto"
         :disabled="currentIndex >= magazine.length && !autoFiring"
-        title="Auto-wysyłanie"
+        title="Auto-fire"
       >
         <span class="fire-icon">{{ autoFiring ? '&#9632;' : '&#8634;' }}</span>
       </button>
@@ -101,16 +101,16 @@
         <label>{{ fireRate }}ms</label>
         <input type="range" min="500" max="5000" step="100" v-model.number="fireRate" />
       </div>
-      <button class="fire-btn reload-btn" @click="reload" title="Przeładuj magazynek">
+      <button class="fire-btn reload-btn" @click="reload" title="Reload magazine">
         <span class="fire-icon">&#8635;</span>
       </button>
-      <button class="fire-btn clear-btn" @click="clearAll" title="Wyczyść wszystkie wiadomości">
+      <button class="fire-btn clear-btn" @click="clearAll" title="Clear all messages">
         <span class="fire-icon">&#10005;</span>
       </button>
     </div>
 
     <div class="firebar-compose" :class="{ expanded: composeOpen }">
-      <button class="fire-btn compose-toggle" @click="composeOpen = !composeOpen" title="Wyślij własną wiadomość">
+      <button class="fire-btn compose-toggle" @click="composeOpen = !composeOpen" title="Send custom message">
         <span class="fire-icon">&#9998;</span>
       </button>
       <div v-if="composeOpen" class="compose-form">
@@ -122,12 +122,12 @@
         <input
           v-model="customMsg.sender"
           class="compose-input compose-sender"
-          placeholder="Nadawca"
+          placeholder="Sender"
         />
         <input
           v-model="customMsg.content"
           class="compose-input compose-content"
-          placeholder="Treść wiadomości..."
+          placeholder="Message content..."
           @keyup.enter="sendCustom"
         />
         <input
@@ -136,7 +136,7 @@
           type="number"
           min="0"
           placeholder="#"
-          title="Liczba ponowień"
+          title="Follow-up count"
         />
         <button class="fire-btn" @click="sendCustom" :disabled="!customMsg.content || sending">
           <span class="fire-icon">&#9658;</span>
@@ -193,22 +193,22 @@ const sendCustom = async () => {
 
 // Messages arrive RAW — no priority. The backend triage engine classifies them.
 const MAGAZINE = [
-  { type: "email", sender: "jan.kowalski@gmail.com", content: "Temat: Zepsuta brama — pilne\n\nBrama do garażu podziemnego jest otwarta od 3 dni. Może wejść każdy. Dwa razy dzwoniłem, brak odpowiedzi.", followup_count: 0 },
-  { type: "sms", sender: "+48 601 234 567", content: "Hej, przecieka sufit na klatce schodowej 3. piętro, robi się coraz gorzej", followup_count: 0 },
-  { type: "email", sender: "m.wisniewska@wp.pl", content: "Temat: Brak rozliczenia za marzec\n\nAni ja, ani sąsiadka z 14B nie dostałyśmy rozliczenia za marzec. Proszę o przesłanie.", followup_count: 0 },
-  { type: "sms", sender: "+48 799 112 233", content: "Mieszkanie 4B znowu wynajmuje na Airbnb. To jest niezgodne z regulaminem wspólnoty. Co z tym będziecie robić?", followup_count: 0 },
-  { type: "email", sender: "zarzad@wspolnota-mokotow.pl", content: "Temat: Decyzja zarządu — remont dachu\n\nOtrzymaliśmy trzy oferty na remont dachu. Zarząd musi podjąć decyzję przed kwietniowym zebraniem.", followup_count: 0 },
-  { type: "sms", sender: "+48 512 887 001", content: "Pani Ania nie odpowiada od tygodnia na moje maile w sprawie funduszu remontowego", followup_count: 0 },
-  { type: "email", sender: "p.nowak@gmail.com", content: "Temat: Skargi na hałas — mieszkanie 12A\n\nTo już czwarta skarga na to mieszkanie. Głośna muzyka każdą noc po północy. Nic nie zostało zrobione.", followup_count: 3 },
-  { type: "sms", sender: "+48 604 332 119", content: "Winda znowu zepsuta w budynku B. Trzeci raz w tym miesiącu.", followup_count: 2 },
-  { type: "email", sender: "r.dabrowska@onet.pl", content: "Temat: Odnowienie ubezpieczenia\n\nUbezpieczenie budynku kończy się 30 kwietnia. Nie widzę tego w agendzie zebrania.", followup_count: 0 },
-  { type: "sms", sender: "+48 733 201 445", content: "Czy ktoś może potwierdzić, że moja wpłata na fundusz eksploatacyjny dotarła? Zapłaciłem 3 tygodnie temu.", followup_count: 0 },
-  { type: "email", sender: "jan.kowalski@gmail.com", content: "Temat: RE: Zepsuta brama\n\nPiszę PO RAZ TRZECI. Brama nadal otwarta. Jeśli do końca tygodnia nic się nie zmieni, zgłaszam sprawę do nadzoru budowlanego.", followup_count: 3 },
-  { type: "sms", sender: "+48 601 234 567", content: "O tej przeciekającej klatce schodowej co pisałem — teraz leje się na skrzynkę elektryczną. To chyba groźne?", followup_count: 1 },
-  { type: "voice", sender: "+48 888 100 200", content: "[Transkrypcja Whisper, ~72%] Dzień dobry, dzwonię... chyba Lewandowska z... [nieczytelne]... w piwnicy jest woda na... dwadzieścia centymetrów?", followup_count: 0 },
-  { type: "email", sender: "biuro@bud-serwis.pl", content: "Temat: Faktura nr FS/2024/0892\n\nFaktura za przegląd instalacji gazowej (budynki A–C). Kwota 8.200 zł netto.", followup_count: 0 },
-  { type: "email", sender: "tomek.zielinski@outlook.com", content: "Temat: Quick question about the parking spot\n\nHi, I just moved in (apt 7C) and my Polish is still not great. Is there a way to rent an additional parking spot?", followup_count: 0 },
-  { type: "sms", sender: "+48 606 999 111", content: "Cześć, pani z 8A też ma zalany sufit, chyba ten sam problem co u mnie na 3 piętrze. Może warto sprawdzić całą pionówkę?", followup_count: 0 },
+  { type: "email", sender: "john.smith@gmail.com", content: "Subject: Broken garage gate — urgent\n\nThe underground garage gate has been open for 3 days. Anyone can walk in. I've called twice, no response.", followup_count: 0 },
+  { type: "sms", sender: "+1 555 234 567", content: "Hey, the ceiling is leaking in the stairwell on the 3rd floor, getting worse", followup_count: 0 },
+  { type: "email", sender: "m.williams@yahoo.com", content: "Subject: Missing March statement\n\nNeither I nor my neighbor in 14B received the March expense statement. Please send it.", followup_count: 0 },
+  { type: "sms", sender: "+1 555 112 233", content: "Apartment 4B is renting on Airbnb again. This violates the building rules. What are you going to do about it?", followup_count: 0 },
+  { type: "email", sender: "board@oakridge-hoa.com", content: "Subject: Board decision — roof repair\n\nWe received three quotes for the roof repair. The board needs to decide before the April meeting.", followup_count: 0 },
+  { type: "sms", sender: "+1 555 887 001", content: "Anna hasn't responded to my emails about the repair fund for a week", followup_count: 0 },
+  { type: "email", sender: "p.johnson@gmail.com", content: "Subject: Noise complaints — apartment 12A\n\nThis is the fourth complaint about this apartment. Loud music every night after midnight. Nothing has been done.", followup_count: 3 },
+  { type: "sms", sender: "+1 555 332 119", content: "Elevator broken again in building B. Third time this month.", followup_count: 2 },
+  { type: "email", sender: "r.davis@outlook.com", content: "Subject: Insurance renewal\n\nThe building insurance expires April 30. I don't see it on the meeting agenda.", followup_count: 0 },
+  { type: "sms", sender: "+1 555 201 445", content: "Can someone confirm my maintenance fee payment went through? I paid 3 weeks ago.", followup_count: 0 },
+  { type: "email", sender: "john.smith@gmail.com", content: "Subject: RE: Broken garage gate\n\nI'm writing for the THIRD TIME. Gate is still open. If nothing changes by end of week, I'm reporting this to the building authority.", followup_count: 3 },
+  { type: "sms", sender: "+1 555 234 567", content: "About that stairwell leak I mentioned — it's now dripping onto the electrical panel. That seems dangerous?", followup_count: 1 },
+  { type: "voice", sender: "+1 555 100 200", content: "[Whisper transcription, ~72% confidence] Hello, I'm calling... I think it's Mrs. Lewis from... [unintelligible]... there's water in the basement about... twenty centimeters?", followup_count: 0 },
+  { type: "email", sender: "office@buildserv.com", content: "Subject: Invoice #INV/2024/0892\n\nPlease find attached the invoice for the gas installation inspection (buildings A–C). Amount: $3,200 net.", followup_count: 0 },
+  { type: "email", sender: "tom.green@outlook.com", content: "Subject: Quick question about the parking spot\n\nHi, I just moved in (apt 7C). Is there a way to rent an additional parking spot in the garage? Also the intercom doesn't seem to work for my unit. Thanks!", followup_count: 0 },
+  { type: "sms", sender: "+1 555 999 111", content: "Hey, the lady in 8A also has a flooded ceiling, seems like the same issue as mine on the 3rd floor. Maybe worth checking the whole riser?", followup_count: 0 },
 ]
 
 const magazine = ref([...MAGAZINE])

@@ -1,8 +1,8 @@
-CLASSIFY_SYSTEM = """Jesteś specjalistą triażu w zarządzaniu nieruchomościami w Polsce.
-Analizujesz przychodzące wiadomości od lokatorów, dostawców i systemów automatycznych.
-Wiadomości są najczęściej po polsku — rozumiesz polski biegle.
+CLASSIFY_SYSTEM = """You are a property management triage specialist.
+You analyze incoming messages from residents, vendors, and automated systems.
+Messages may be in any language — you understand them fluently.
 
-Twoim zadaniem jest sklasyfikować wiadomość: kategoria, priorytet i typ nadawcy."""
+Your task is to classify each message: category, priority, and sender type."""
 
 CLASSIFY_USER = """Classify this message:
 
@@ -18,7 +18,7 @@ Category guidelines:
 - safety: ONLY direct threats to life or health — fire, gas leak, structural collapse, physical violence, mold/asbestos exposure. A broken gate or elevator is NOT safety.
 - plumbing: Water/leak/pipe/flooding issues — active water damage, pipe burst, clogged drain, toilet overflow.
 - electrical: Electrical hazards — sparks, exposed wiring, power outage, electrical fire risk.
-- access: Broken gate, broken elevator, broken intercom/domofon, lock issues, key problems, entry/exit problems. These are infrastructure access issues, NOT safety.
+- access: Broken gate, broken elevator, broken intercom, lock issues, key problems, entry/exit problems. These are infrastructure access issues, NOT safety.
 - noise: Noise complaints — loud neighbors, music, construction noise.
 - maintenance: General repairs and upkeep — painting, cleaning, heating/cooling, appliances.
 - billing: Financial matters — rent, invoices, payments, deposits.

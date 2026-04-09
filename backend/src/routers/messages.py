@@ -108,16 +108,16 @@ async def generate_reply(message_id: str, body: GenerateReplyRequest = GenerateR
 
     tone_instruction = ""
     if body.tone == "ack":
-        tone_instruction = "\nTon: Potwierdź odbiór zgłoszenia, zapewnij że sprawa jest w toku."
+        tone_instruction = "\nTone: Acknowledge receipt of the issue, assure them it's being handled."
     elif body.tone == "escalate":
-        tone_instruction = "\nTon: Poinformuj o eskalacji do wyższego priorytetu, zapewnij o szybkim kontakcie."
+        tone_instruction = "\nTone: Inform about escalation to higher priority, assure prompt follow-up."
     elif body.tone == "resolved":
-        tone_instruction = "\nTon: Poinformuj o rozwiązaniu sprawy, zaproponuj kontakt w razie dalszych problemów."
+        tone_instruction = "\nTone: Inform that the issue has been resolved, offer to follow up if problems persist."
     elif body.tone == "info":
-        tone_instruction = "\nTon: Poproś grzecznie o dodatkowe szczegóły potrzebne do dalszego procedowania."
+        tone_instruction = "\nTone: Politely request additional details needed to proceed."
 
     prompt = DRAFT_USER.format(
-        category=message.category or "ogólne",
+        category=message.category or "general",
         priority=message.priority.value,
         sender_type=message.sender_type.value if message.sender_type else "resident",
         channel=message.type.value,

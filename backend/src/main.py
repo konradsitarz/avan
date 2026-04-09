@@ -12,7 +12,7 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown: cleanup if needed
 
-app = FastAPI(title="Nava Property Management API", lifespan=lifespan)
+app = FastAPI(title="Avan Property Management API", lifespan=lifespan)
 
 # CORS middleware for Vue frontend
 app.add_middleware(
@@ -30,7 +30,7 @@ app.include_router(tts_router)
 
 @app.get("/")
 def read_root():
-    return {"message": "Nava Property Management API", "status": "running"}
+    return {"message": "Avan Property Management API", "status": "running"}
 
 @app.get("/api/health")
 def health_check():

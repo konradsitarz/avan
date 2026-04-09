@@ -3,34 +3,34 @@
     <div class="page-header">
       <div class="header-row">
         <div>
-          <h1 class="page-title">Zgłoszenia</h1>
-          <p class="page-subtitle">Posortowane wg priorytetu</p>
+          <h1 class="page-title">Issues</h1>
+          <p class="page-subtitle">Sorted by priority</p>
         </div>
         <div class="header-actions">
           <div class="filter-group">
             <select v-model="filterPriority">
-              <option value="">Wszystkie priorytety</option>
-              <option value="urgent">Pilne</option>
-              <option value="high">Ważne</option>
-              <option value="medium">Średnie</option>
-              <option value="low">Niskie</option>
+              <option value="">All priorities</option>
+              <option value="urgent">Urgent</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
             </select>
             <select v-model="filterType">
-              <option value="">Wszystkie kanały</option>
+              <option value="">All channels</option>
               <option value="email">Email</option>
               <option value="sms">SMS</option>
-              <option value="voice">Telefon</option>
+              <option value="voice">Phone</option>
             </select>
           </div>
-          <button class="btn" @click="fetchMessages">Odśwież</button>
+          <button class="btn" @click="fetchMessages">Refresh</button>
         </div>
       </div>
     </div>
 
-    <div v-if="loading" class="empty-state">Ładowanie...</div>
+    <div v-if="loading" class="empty-state">Loading...</div>
     <div v-else-if="error" class="empty-state" style="color: var(--urgent)">{{ error }}</div>
     <div v-else-if="sortedMessages.length === 0" class="empty-state">
-      <p>Brak zgłoszeń</p>
+      <p>No issues</p>
     </div>
 
     <div v-else class="feed-layout">
@@ -67,41 +67,41 @@
             <span class="badge" :class="`badge-${selected.priority}`">{{ label(priorityLabels, selected.priority) }}</span>
             <span class="badge" :class="`badge-${selected.type}`">{{ label(channelLabels, selected.type) }}</span>
           </div>
-          <button class="btn btn-sm btn-danger" @click="handleDelete(selected._id || selected.id)">Usuń</button>
+          <button class="btn btn-sm btn-danger" @click="handleDelete(selected._id || selected.id)">Delete</button>
         </div>
 
         <div class="detail-field">
-          <label>Od</label>
+          <label>From</label>
           <p>{{ selected.sender }}</p>
         </div>
 
         <div class="detail-field">
-          <label>Treść</label>
+          <label>Content</label>
           <p class="detail-content">{{ selected.content }}</p>
         </div>
 
         <div class="detail-meta">
           <div class="detail-field">
-            <label>Ponowienia</label>
+            <label>Follow-ups</label>
             <p>{{ selected.followup_count }}</p>
           </div>
           <div class="detail-field">
-            <label>Otrzymano</label>
+            <label>Received</label>
             <p>{{ formatDate(selected.created_at) }}</p>
           </div>
           <div class="detail-field">
-            <label>Przypisano do</label>
-            <p>{{ selected.assigned_to || 'Nieprzypisane' }}</p>
+            <label>Assigned to</label>
+            <p>{{ selected.assigned_to || 'Unassigned' }}</p>
           </div>
         </div>
 
         <div class="detail-actions">
           <div class="assign-row">
-            <input v-model="assignInput" placeholder="Przypisz do..." @keyup.enter="handleAssign" />
-            <button class="btn btn-primary btn-sm" @click="handleAssign">Przypisz</button>
+            <input v-model="assignInput" placeholder="Assign to..." @keyup.enter="handleAssign" />
+            <button class="btn btn-primary btn-sm" @click="handleAssign">Assign</button>
           </div>
           <div class="priority-row">
-            <label>Zmień priorytet</label>
+            <label>Change priority</label>
             <div class="priority-buttons">
               <button
                 v-for="p in ['low','medium','high','urgent']"
@@ -115,7 +115,7 @@
         </div>
       </div>
       <div class="feed-detail card empty-detail" v-else>
-        <p class="empty-state">Wybierz wiadomość, aby zobaczyć szczegóły</p>
+        <p class="empty-state">Select a message to view details</p>
       </div>
     </div>
   </div>
@@ -154,7 +154,7 @@ const handleAssign = async () => {
     selected.value = await store.update(id, { ...selected.value, assigned_to: assignInput.value.trim() })
     assignInput.value = ''
   } catch (e) {
-    error.value = 'Nie udało się przypisać'
+    error.value = 'Failed to assign'
   }
 }
 
@@ -164,17 +164,17 @@ const handlePriority = async (priority) => {
   try {
     selected.value = await store.update(id, { ...selected.value, priority })
   } catch (e) {
-    error.value = 'Nie udało się zmienić priorytetu'
+    error.value = 'Failed to change priority'
   }
 }
 
 const handleDelete = async (id) => {
-  if (!confirm('Usunąć tę wiadomość?')) return
+  if (!confirm('Delete this message?')) return
   try {
     await store.remove(id)
     selected.value = null
   } catch (e) {
-    error.value = 'Nie udało się usunąć'
+    error.value = 'Failed to delete'
   }
 }
 
@@ -183,12 +183,12 @@ const truncate = (str, len) => str.length > len ? str.slice(0, len) + '...' : st
 const timeAgo = (dateStr) => {
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'właśnie'
-  if (mins < 60) return `${mins} min temu`
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins} min ago`
   const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours} godz. temu`
+  if (hours < 24) return `${hours}h ago`
   const days = Math.floor(hours / 24)
-  return `${days} dni temu`
+  return `${days}d ago`
 }
 
 const formatDate = (dateStr) => new Date(dateStr).toLocaleString()

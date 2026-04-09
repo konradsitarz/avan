@@ -1,10 +1,10 @@
-# Nava — Strategy
+# Avan — Strategy
 
 ## Vision
 
-Nava is an AI-native triage layer for residential property managers. The core loop: messages arrive from residents (email, SMS, voice) → an LLM agent classifies, groups, and prioritizes them → the manager gets a structured briefing instead of raw noise. Every manager correction feeds back as a few-shot example, so the system improves with use.
+Avan is an AI-native triage layer for residential property managers. The core loop: messages arrive from residents (email, SMS, voice) → an LLM agent classifies, groups, and prioritizes them → the manager gets a structured briefing instead of raw noise. Every manager correction feeds back as a few-shot example, so the system improves with use.
 
-The goal is not to replace the manager — it's to eliminate the cognitive overhead of reading 50 unstructured messages and deciding what matters. Nava handles the sorting; the manager handles the judgment.
+The goal is not to replace the manager — it's to eliminate the cognitive overhead of reading 50 unstructured messages and deciding what matters. Avan handles the sorting; the manager handles the judgment.
 
 ## Agent Architecture — Current vs Target
 
@@ -51,9 +51,9 @@ Each agent has:
 
 ### Business metrics (value for the customer)
 
-- **Manager triage time** — before Nava: 45–60 min every morning reading and sorting raw messages. After Nava: 5–10 min reviewing the briefing and approving actions. This is the number that sells the product.
+- **Manager triage time** — before Avan: 45–60 min every morning reading and sorting raw messages. After Avan: 5–10 min reviewing the briefing and approving actions. This is the number that sells the product.
 - **Time to first response (TTR)** — average time between a resident message and a manager reply. Draft responses + clear priority = faster reaction. Measurable once outbound channel integration exists.
-- **Critical issues caught** — escalations flagged by Nava that would have been buried in noise. One missed water leak = repair cost + tenant churn. One caught escalation = months of subscription ROI.
+- **Critical issues caught** — escalations flagged by Avan that would have been buried in noise. One missed water leak = repair cost + tenant churn. One caught escalation = months of subscription ROI.
 - **Per-building learning curve** — how many overrides until accuracy stabilizes. This is the argument for long-term contracts: the system gets better the longer it runs for a specific building. Target: measure accuracy delta at 10 / 50 / 200 overrides.
 
 ### On ground truth
@@ -69,7 +69,7 @@ The override loop is not just a UX feature — it is the ground truth collection
 - Per-building learning: admin overrides improve classification for that building only — not globally
 - Assignment engine (auto-assign to maintenance staff based on category)
 - Notification channels (push to manager's phone for urgent escalations)
-- CEE multilingual: PL/EN/UA/RO — draft in sender's language, admin interface in their language. Not just translation — cultural context.
+- Multilingual support: draft in sender's language, admin interface in their language. Not just translation — cultural context.
 - Resident portal: resident sees status of their ticket + voting system for building matters (renovations, rule changes, budget proposals, common-area decisions). Results feed into briefing so the manager sees consensus before acting.
 - Event calendar: recurring events (inspections, fire alarm tests, garbage pickup, meter readings) and one-off planned events (scheduled repairs, lease signings, contractor visits). Surfaced in briefing so the manager sees upcoming events alongside active issues. Triage agent can correlate incoming messages with scheduled events (e.g., resident complaint about noise → scheduled renovation today). Model: `Event` document with recurrence rules (RRULE or simple: daily/weekly/monthly/yearly + day), linked to building/unit.
 - Override UX: currently post-hoc only (manager corrects after triage). No "flag for human review" flow, no inline correction during briefing review. Target: triage confidence score → low-confidence items surface for review before briefing is finalized.
@@ -96,7 +96,7 @@ The override loop is not just a UX feature — it is the ground truth collection
 
 - **Latency / streaming:** Triage runs synchronously — the UI blocks until the full classify→relate→decide→draft pipeline completes. No SSE or WebSocket feedback. At scale (burst of 20+ messages), this becomes a UX problem: manager fires messages and waits with no progress indication. Target: async triage with streaming status updates.
 
-- **Regex fallback is shallow:** when `OPENAI_API_KEY` is not set, triage falls back to regex pattern matching. This only sets priority — no category, no urgency/importance, no sender_type, no grouping, no draft. Messages are essentially unsorted beyond urgent/high/medium/low. Patterns are Polish-only, so non-PL messages all land at medium. Briefing still works but without LLM briefs or meaningful grouping.
+- **Regex fallback is shallow:** when `OPENAI_API_KEY` is not set, triage falls back to regex pattern matching. This only sets priority — no category, no urgency/importance, no sender_type, no grouping, no draft. Messages are essentially unsorted beyond urgent/high/medium/low. Patterns are English-only, so non-English messages all land at medium. Briefing still works but without LLM briefs or meaningful grouping.
 
 ### Where it's hardest technically
 

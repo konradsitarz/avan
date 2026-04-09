@@ -1,20 +1,20 @@
 services:
   mongodb:
     image: mongo:7.0
-    container_name: nava-mongodb
+    container_name: avan-mongodb
     restart: unless-stopped
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
     environment:
-      MONGO_INITDB_DATABASE: nava
+      MONGO_INITDB_DATABASE: avan
 
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: nava-backend
+    container_name: avan-backend
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -22,7 +22,7 @@ services:
       - ./backend:/app
     environment:
       - MONGODB_URL=mongodb://mongodb:27017
-      - DATABASE_NAME=nava
+      - DATABASE_NAME=avan
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - ELEVENLABS_API_KEY=${ELEVENLABS_API_KEY}
       - ELEVENLABS_VOICE_ID=${ELEVENLABS_VOICE_ID:-}
@@ -33,7 +33,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: nava-frontend
+    container_name: avan-frontend
     restart: unless-stopped
     ports:
       - "5173:5173"

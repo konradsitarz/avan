@@ -54,26 +54,26 @@ async def triage_message(message: Message) -> Message:
 # ---------------------------------------------------------------------------
 
 URGENT_PATTERNS = [
-    r"nadzór budowlan", r"skrzynk[aę] elektryczn", r"zagrożeni[ae]",
-    r"pożar", r"gaz[u ]", r"ewakuacj", r"wod[ay] na .* centymetr",
-    r"groźn[ey]", r"niebezpiecz",
-    r"zgłaszam sprawę", r"prawnik", r"sąd[u ]", r"po raz trzeci", r"PO RAZ TRZECI",
-    r"nic nie zostało zrobione", r"brak odpowiedzi.*brak odpowiedzi",
+    r"building authority", r"electrical panel", r"hazard",
+    r"fire", r"gas leak", r"evacuat", r"water.*centimeter",
+    r"dangerous", r"unsafe",
+    r"reporting this", r"lawyer", r"court", r"third time", r"THIRD TIME",
+    r"nothing has been done", r"no response.*no response",
 ]
 
 HIGH_PATTERNS = [
-    r"brama.*otwart[a]", r"winda.*zepsut[a]", r"przeciek", r"zalany? sufit",
-    r"leje się", r"wod[ay] w piwnicy", r"śmierdzi", r"awari[aę]", r"zepsut[aey]",
-    r"airbnb", r"regulamin", r"niezgodn[eay]",
-    r"skarg[iae].*hałas", r"głośn[aey] muzyk", r"każd[aąey] noc", r"czwart[aey] skarg",
-    r"pilne", r"jak najszybciej", r"kończy się", r"przed.*zebraniem",
-    r"ponownie", r"znowu", r"trzeci raz", r"kolejny raz", r"nie odpowiada",
-    r"instal.*gazow", r"elektryk", r"nieczytelne",
+    r"gate.*open", r"elevator.*broken", r"leak", r"flooded ceiling",
+    r"dripping", r"water in.*basement", r"smell", r"breakdown", r"broken",
+    r"airbnb", r"building rules", r"violat",
+    r"complaint.*noise", r"loud music", r"every night", r"fourth complaint",
+    r"urgent", r"as soon as possible", r"expir", r"before.*meeting",
+    r"again", r"third time", r"another time", r"not respond",
+    r"gas install", r"electric", r"unintelligible",
 ]
 
 LOW_PATTERNS = [
-    r"faktur[aęy]", r"rozliczeni[ae]", r"parking", r"wpłat[aęy]",
-    r"potwierdzi[ćę]", r"intercom", r"domofon", r"quick question", r"moved in",
+    r"invoice", r"statement", r"parking", r"payment",
+    r"confirm", r"intercom", r"quick question", r"moved in",
 ]
 
 

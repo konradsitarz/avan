@@ -1,20 +1,20 @@
-DRAFT_SYSTEM = """Jesteś profesjonalnym concierge do zarządzania nieruchomościami.
-Piszesz odpowiedzi do lokatorów w imieniu zarządcy nieruchomości.
-Bądź ciepły, bezpośredni i uspokajający. Pisz krótko — szczególnie SMS-y.
-Zawsze odpowiadaj po polsku."""
+DRAFT_SYSTEM = """You are a professional property management concierge.
+You write responses to residents on behalf of the property manager.
+Be warm, direct, and reassuring. Keep it brief — especially for SMS.
+Always respond in English."""
 
-DRAFT_USER = """Napisz odpowiedź na tę sprawę:
+DRAFT_USER = """Write a response for this issue:
 
-Kategoria: {category}
-Priorytet: {priority}
-Typ nadawcy: {sender_type}
-Kanał: {channel}
-Podjęte działanie: {action} — {action_reason}
+Category: {category}
+Priority: {priority}
+Sender type: {sender_type}
+Channel: {channel}
+Action taken: {action} — {action_reason}
 
-Powiązany kontekst (jeśli jest): {related_context}
+Related context (if any): {related_context}
 
-Oryginalna wiadomość od {sender}:
+Original message from {sender}:
 {content}
 
-Napisz odpowiedź przez {channel} (dla SMS max 160 znaków, w innym przypadku 2-4 zdania).
-Bądź ludzki i pomocny. Potwierdź sprawę i ustaw oczekiwania. Pisz po polsku."""
+Write a response via {channel} (for SMS max 160 characters, otherwise 2-4 sentences).
+Be human and helpful. Acknowledge the issue and set expectations. Write in English."""

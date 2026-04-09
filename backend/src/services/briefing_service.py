@@ -34,44 +34,42 @@ class BriefingState(TypedDict):
     issue_briefs: list[dict]
 
 
-SYSTEM_PROMPT = """Jesteś profesjonalnym asystentem concierge do zarządzania nieruchomościami.
-Mówisz ciepłym, ale rzeczowym tonem — jak zaufany doradca, który briefuje zapracowanego zarządcę
-przy porannej kawie. Bądź bezpośredni, ludzki i konkretny.
+SYSTEM_PROMPT = """You are a professional property management concierge assistant.
+You speak in a warm but matter-of-fact tone — like a trusted advisor briefing a busy manager
+over their morning coffee. Be direct, human, and specific.
 
-Zarządzasz nieruchomościami mieszkalnymi w Polsce.
-Wiadomości od lokatorów są najczęściej po polsku — rozumiesz polski biegle
-i zawsze piszesz briefingi po polsku.
+You manage residential properties.
 
-Nigdy nie używaj punktów ani list w podsumowaniu. Pisz płynną prozą, maksymalnie 2-3 zdania.
-Skup się na tym, co najważniejsze i ogólnej sytuacji."""
+Never use bullet points or lists in the summary. Write flowing prose, 2-3 sentences max.
+Focus on what matters most and the overall situation."""
 
-SUMMARY_PROMPT = """Oto aktualne aktywne sprawy na Twoich nieruchomościach:
+SUMMARY_PROMPT = """Here are the current active issues on your properties:
 
 {messages_text}
 
-Statystyki: {message_count} spraw łącznie, {urgent_count} pilnych, {high_count} o wysokim priorytecie.{unassigned_note}
+Stats: {message_count} issues total, {urgent_count} urgent, {high_count} high priority.{unassigned_note}
 
-Napisz 2-3 zdaniowy briefing dla zarządcy nieruchomości. Bądź ciepły, ale bezpośredni.
-Zacznij od najważniejszej sytuacji, potem daj ogólny obraz obciążenia.
-NIE wymieniaj poszczególnych spraw — namaluj ogólny obraz."""
+Write a 2-3 sentence briefing for the property manager. Be warm but direct.
+Start with the most critical situation, then give an overall picture of the workload.
+Do NOT list individual issues — paint the big picture."""
 
-ISSUE_PROMPT = """Briefujesz zarządcę nieruchomości na temat tej sprawy.
+ISSUE_PROMPT = """You are briefing the property manager about this issue.
 
-Nadawca: {sender}
-Kategoria: {category}
-Ogólny priorytet: {priority}
-Przypisano do: {assigned_to}
+Sender: {sender}
+Category: {category}
+Overall priority: {priority}
+Assigned to: {assigned_to}
 
-Oś czasu wiadomości (od najstarszej):
+Message timeline (oldest first):
 {timeline}
 
-Napisz 2-3 zdaniowy brief w stylu concierge o tej sprawie. Wyjaśnij:
-1. Co się dzieje (podsumuj cały wątek, nie tylko ostatnią wiadomość)
-2. Jak sprawa eskalowała w czasie (jeśli jest wiele wiadomości)
-3. Co zarządca powinien zrobić dalej
+Write a 2-3 sentence concierge-style brief about this issue. Explain:
+1. What is happening (summarize the whole thread, not just the last message)
+2. How the issue has escalated over time (if there are multiple messages)
+3. What the manager should do next
 
-Bądź ludzki i bezpośredni. Pisz po polsku.
-Nie powtarzaj metadanych — skup się na sytuacji, pilności i zalecanym działaniu."""
+Be human and direct. Write in English.
+Don't repeat metadata — focus on the situation, urgency, and recommended action."""
 
 
 # ---------------------------------------------------------------------------
@@ -114,9 +112,9 @@ def generate_issue_briefs(state: BriefingState) -> dict:
 
         prompt = ISSUE_PROMPT.format(
             sender=issue["sender"],
-            category=issue.get("category") or "bez kategorii",
+            category=issue.get("category") or "uncategorized",
             priority=issue["priority"],
-            assigned_to=issue.get("assigned_to") or "Nikt (nieprzypisane)",
+            assigned_to=issue.get("assigned_to") or "Nobody (unassigned)",
             timeline=timeline_text,
         )
         response = llm.invoke([
@@ -210,7 +208,7 @@ class BriefingService:
         if not messages:
             result = {
                 "generated_at": now.isoformat(),
-                "summary": "Dobra wiadomość — skrzynka jest pusta. Brak aktywnych spraw na Twoich nieruchomościach.",
+                "summary": "Good news — the inbox is empty. No active issues on your properties.",
                 "issues": [],
                 "stats": BriefingService._build_stats(messages),
             }
@@ -259,7 +257,7 @@ class BriefingService:
             msg_count = item.get("message_count", 1)
             label = f"[{item['priority'].upper()}] {item.get('category', '?')} — {item['sender']}"
             if msg_count > 1:
-                label += f" ({msg_count} wiadomości)"
+                label += f" ({msg_count} messages)"
             messages_text += f"{label}: {item['content'][:200]}\n"
 
         initial_state: BriefingState = {
@@ -268,7 +266,7 @@ class BriefingService:
             "urgent_count": stats["urgent"],
             "high_count": stats["high"],
             "unassigned_note": (
-                f" {stats['unassigned']} nieprzypisanych."
+                f" {stats['unassigned']} unassigned."
                 if stats["unassigned"] < stats["total"]
                 else ""
             ),
@@ -399,21 +397,17 @@ class BriefingService:
         created = created_at.replace(tzinfo=timezone.utc) if created_at.tzinfo is None else created_at
         age = now - created
         if age < timedelta(hours=1):
-            return "przed chwilą"
+            return "just now"
         elif age < timedelta(hours=2):
-            return "około godziny temu"
+            return "about an hour ago"
         elif age < timedelta(hours=24):
             hours = int(age.total_seconds() / 3600)
-            if hours < 5:
-                return f"{hours} godziny temu"
-            return f"{hours} godzin temu"
+            return f"{hours} hours ago"
         elif age < timedelta(days=2):
-            return "wczoraj"
+            return "yesterday"
         else:
             days = int(age.total_seconds() / 86400)
-            if days < 5:
-                return f"{days} dni temu"
-            return f"{days} dni temu"
+            return f"{days} days ago"
 
     @staticmethod
     def _build_item(m: Message, now: datetime, related: list[Message] | None = None) -> dict:
@@ -481,5 +475,5 @@ class BriefingService:
         n = len(messages)
         urgent = stats["urgent"]
         if urgent > 0:
-            return f"Masz {n} aktywnych spraw, z czego {urgent} jest pilnych i wymaga natychmiastowej uwagi. Żadna nie została jeszcze przypisana — priorytetem powinien być triaż krytycznych zgłoszeń."
-        return f"Masz {n} aktywnych spraw na swoich nieruchomościach. Nic krytycznego w tej chwili, ale są sprawy wymagające uwagi dziś."
+            return f"You have {n} active issues, {urgent} of which are urgent and need immediate attention. None have been assigned yet — prioritize triaging the critical ones."
+        return f"You have {n} active issues on your properties. Nothing critical right now, but there are items that need attention today."

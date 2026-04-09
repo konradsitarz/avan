@@ -3,7 +3,7 @@
     <!-- Loading -->
     <div v-if="loading" class="briefing-loading">
       <div class="loading-pulse"></div>
-      <p>Przygotowuję briefing...</p>
+      <p>Preparing briefing...</p>
     </div>
 
     <div v-else-if="error" class="empty-state" style="color: var(--urgent)">{{ error }}</div>
@@ -15,16 +15,16 @@
         <div class="briefing-date">{{ formatDate(briefing.generated_at) }}</div>
 
         <div class="summary-card">
-          <div class="summary-avatar">N</div>
+          <div class="summary-avatar">A</div>
           <div class="summary-body">
-            <div class="summary-label">Poranny briefing</div>
+            <div class="summary-label">Morning briefing</div>
             <p class="summary-text">{{ briefing.summary }}</p>
           </div>
           <button
             class="btn-tts"
             @click="startBriefingReadAloud()"
             :class="{ playing: ttsPlaying }"
-            :title="ttsPlaying ? 'Zatrzymaj czytanie' : 'Czytaj na głos'"
+            :title="ttsPlaying ? 'Stop reading' : 'Read aloud'"
           >
             <span v-if="ttsLoading" class="tts-icon">...</span>
             <span v-else-if="ttsPlaying" class="tts-icon">&#9632;</span>
@@ -35,18 +35,18 @@
         <div class="stats-row">
           <div class="stat-pill" :class="{ active: briefing.stats.urgent > 0 }">
             <span class="pill-dot dot-urgent"></span>
-            <span>{{ briefing.stats.urgent }} pilnych</span>
+            <span>{{ briefing.stats.urgent }} urgent</span>
           </div>
           <div class="stat-pill">
             <span class="pill-dot dot-high"></span>
-            <span>{{ briefing.stats.high }} ważnych</span>
+            <span>{{ briefing.stats.high }} high</span>
           </div>
           <div class="stat-pill">
             <span class="pill-dot dot-medium"></span>
-            <span>{{ briefing.stats.medium + briefing.stats.low }} rutynowych</span>
+            <span>{{ briefing.stats.medium + briefing.stats.low }} routine</span>
           </div>
           <div class="stat-pill" v-if="briefing.stats.unassigned < briefing.stats.total">
-            <span>{{ briefing.stats.unassigned }} nieprzypisanych</span>
+            <span>{{ briefing.stats.unassigned }} unassigned</span>
           </div>
         </div>
 
@@ -55,7 +55,7 @@
           class="btn-begin"
           @click="briefingStore.beginReview()"
         >
-          Przejrzyj sprawy po kolei
+          Review issues one by one
           <span class="btn-count">{{ briefing.issues.length }}</span>
         </button>
       </div>
@@ -63,19 +63,19 @@
       <!-- PHASE 2: Issue-by-issue review -->
       <div v-if="phase === 'review'" class="phase-review">
         <div class="review-nav">
-          <button class="btn btn-sm" @click="briefingStore.backToSummary()">Wróć do briefingu</button>
+          <button class="btn btn-sm" @click="briefingStore.backToSummary()">Back to briefing</button>
           <span class="review-progress">{{ currentIndex + 1 }} z {{ briefing.issues.length }}</span>
           <button
             v-if="!ttsPlaying"
             class="btn btn-sm btn-tts-flow"
             @click="startFlowFromCurrent()"
-            title="Czytaj od tej sprawy"
-          >&#9654; Czytaj</button>
+            title="Read from this issue"
+          >&#9654; Read</button>
           <button
             v-else
             class="btn btn-sm btn-tts-flow playing"
             @click="stopTTS()"
-            title="Zatrzymaj czytanie"
+            title="Stop reading"
           >&#9632; Stop</button>
           <div class="review-dots">
             <span
@@ -97,31 +97,31 @@
             <span class="badge badge-category" v-if="currentIssue.category">{{ label(categoryLabels, currentIssue.category) }}</span>
             <span class="badge" :class="`badge-${currentIssue.type}`">{{ label(channelLabels, currentIssue.type) }}</span>
             <span class="issue-msg-count" v-if="currentIssue.message_count > 1">
-              {{ currentIssue.message_count }} wiadomości
+              {{ currentIssue.message_count }} messages
             </span>
             <span class="issue-time">{{ currentIssue.time_label }}</span>
           </div>
 
           <div class="issue-from">
-            <label>Od</label>
+            <label>From</label>
             <span>{{ currentIssue.sender }}</span>
           </div>
 
           <!-- LLM Brief — the concierge summary -->
           <div v-if="currentIssue.llm_brief" class="issue-brief">
-            <div class="brief-icon">N</div>
+            <div class="brief-icon">A</div>
             <p>{{ currentIssue.llm_brief }}</p>
           </div>
 
           <!-- Triage reasoning -->
           <div v-if="currentIssue.action_reason" class="issue-reasoning">
-            <label>Uzasadnienie triażu</label>
+            <label>Triage reasoning</label>
             <p>{{ currentIssue.action_reason }}</p>
           </div>
 
           <!-- Timeline -->
           <div class="issue-timeline" v-if="currentIssue.timeline && currentIssue.timeline.length > 0">
-            <label>Oś czasu</label>
+            <label>Timeline</label>
             <div class="timeline-list">
               <div
                 v-for="(entry, idx) in currentIssue.timeline"
@@ -145,14 +145,14 @@
 
           <div class="issue-details" v-if="currentIssue.followup_count > 0">
             <div class="detail-item">
-              <label>Ponowienia</label>
+              <label>Follow-ups</label>
               <span class="followup-count">{{ currentIssue.followup_count }}x</span>
             </div>
           </div>
 
           <!-- Suggested action -->
           <div class="issue-suggested-action" v-if="suggestedAction(currentIssue)">
-            <label>Sugerowane działanie</label>
+            <label>Suggested action</label>
             <button class="suggested-action-btn" :class="`suggested-${suggestedAction(currentIssue).type}`" @click="suggestedAction(currentIssue).handler(currentIssue)">
               <span class="action-icon">{{ suggestedAction(currentIssue).icon }}</span>
               <div class="action-info">
@@ -163,12 +163,12 @@
             <div v-if="currentIssue.draft_response" class="draft-in-action">
               <button class="draft-toggle" @click="showDraft = !showDraft">
                 <span class="draft-reply-icon">&#8617;</span>
-                <span>Proponowana odpowiedź</span>
+                <span>Suggested response</span>
                 <span class="draft-chevron">{{ showDraft ? '&#9650;' : '&#9660;' }}</span>
               </button>
               <div v-if="showDraft" class="draft-response-body">
                 <p>{{ currentIssue.draft_response }}</p>
-                <button class="btn btn-sm draft-use-btn" @click="respondToSender(currentIssue)">Użyj w odpowiedzi</button>
+                <button class="btn btn-sm draft-use-btn" @click="respondToSender(currentIssue)">Use in response</button>
               </div>
             </div>
           </div>
@@ -176,49 +176,49 @@
           <!-- Actions menu -->
           <div class="issue-quick-actions">
             <button class="action-btn action-primary" @click="showActions = !showActions">
-              {{ showActions ? 'Zamknij' : 'Wszystkie akcje' }}
+              {{ showActions ? 'Close' : 'All actions' }}
             </button>
             <div v-if="showActions" class="actions-menu">
               <button class="action-menu-item" @click="respondToSender(currentIssue)">
                 <span class="action-icon">&#9993;</span>
                 <div class="action-info">
-                  <span class="action-name">Odpowiedz nadawcy</span>
-                  <span class="action-desc">Wyślij odpowiedź do {{ currentIssue.sender }}</span>
+                  <span class="action-name">Reply to sender</span>
+                  <span class="action-desc">Send a response to {{ currentIssue.sender }}</span>
                 </div>
               </button>
               <button class="action-menu-item" @click="escalateIssue(currentIssue)">
                 <span class="action-icon">&#9888;</span>
                 <div class="action-info">
-                  <span class="action-name">Eskaluj do pilnego</span>
-                  <span class="action-desc">Zmień priorytet na PILNY i powiadom zespół</span>
+                  <span class="action-name">Escalate to urgent</span>
+                  <span class="action-desc">Change priority to URGENT and notify the team</span>
                 </div>
               </button>
               <button class="action-menu-item" @click="scheduleVisit(currentIssue)">
                 <span class="action-icon">&#128197;</span>
                 <div class="action-info">
-                  <span class="action-name">Zaplanuj wizytę</span>
-                  <span class="action-desc">Umów oględziny na miejscu</span>
+                  <span class="action-name">Schedule a visit</span>
+                  <span class="action-desc">Arrange an on-site inspection</span>
                 </div>
               </button>
               <button class="action-menu-item" @click="assignToTechnician(currentIssue)">
                 <span class="action-icon">&#128736;</span>
                 <div class="action-info">
-                  <span class="action-name">Przypisz do technika</span>
-                  <span class="action-desc">Wyślij zlecenie do serwisu</span>
+                  <span class="action-name">Assign to technician</span>
+                  <span class="action-desc">Send a work order to maintenance</span>
                 </div>
               </button>
               <button class="action-menu-item" @click="sendAcknowledgment(currentIssue)">
                 <span class="action-icon">&#9993;</span>
                 <div class="action-info">
-                  <span class="action-name">Wyślij potwierdzenie</span>
-                  <span class="action-desc">Poinformuj nadawcę, że sprawa jest w toku</span>
+                  <span class="action-name">Send acknowledgment</span>
+                  <span class="action-desc">Let the sender know the issue is being handled</span>
                 </div>
               </button>
               <button class="action-menu-item" @click="markResolved(currentIssue)">
                 <span class="action-icon">&#10003;</span>
                 <div class="action-info">
-                  <span class="action-name">Oznacz jako rozwiązane</span>
-                  <span class="action-desc">Zamknij sprawę i powiadom nadawcę</span>
+                  <span class="action-name">Mark as resolved</span>
+                  <span class="action-desc">Close the issue and notify the sender</span>
                 </div>
               </button>
             </div>
@@ -227,58 +227,58 @@
           <!-- Override controls -->
           <div class="issue-override">
             <button class="btn btn-sm" @click="showOverride = !showOverride">
-              {{ showOverride ? 'Anuluj zmianę' : 'Zmień triaż' }}
+              {{ showOverride ? 'Cancel change' : 'Override triage' }}
             </button>
             <div v-if="showOverride" class="override-form">
               <div class="override-row">
-                <label>Priorytet</label>
+                <label>Priority</label>
                 <select v-model="overrideData.priority">
-                  <option value="">bez zmian</option>
-                  <option value="low">niski</option>
-                  <option value="medium">średni</option>
-                  <option value="high">wysoki</option>
-                  <option value="urgent">pilny</option>
+                  <option value="">no change</option>
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                  <option value="urgent">urgent</option>
                 </select>
               </div>
               <div class="override-row">
-                <label>Kategoria</label>
+                <label>Category</label>
                 <select v-model="overrideData.category">
-                  <option value="">bez zmian</option>
-                  <option value="safety">bezpieczeństwo</option>
-                  <option value="plumbing">hydraulika</option>
-                  <option value="electrical">elektryka</option>
-                  <option value="noise">hałas</option>
-                  <option value="maintenance">konserwacja</option>
-                  <option value="billing">rozliczenia</option>
-                  <option value="access">dostęp</option>
-                  <option value="compliance">regulamin</option>
-                  <option value="other">inne</option>
+                  <option value="">no change</option>
+                  <option value="safety">safety</option>
+                  <option value="plumbing">plumbing</option>
+                  <option value="electrical">electrical</option>
+                  <option value="noise">noise</option>
+                  <option value="maintenance">maintenance</option>
+                  <option value="billing">billing</option>
+                  <option value="access">access</option>
+                  <option value="compliance">compliance</option>
+                  <option value="other">other</option>
                 </select>
               </div>
               <div class="override-row">
-                <label>Powód</label>
-                <input v-model="overrideData.reason" placeholder="Dlaczego zmieniasz triaż?" />
+                <label>Reason</label>
+                <input v-model="overrideData.reason" placeholder="Why are you overriding the triage?" />
               </div>
               <button class="btn btn-primary btn-sm" @click="submitOverride" :disabled="overrideLoading">
-                {{ overrideLoading ? 'Zapisuję...' : 'Zapisz zmianę' }}
+                {{ overrideLoading ? 'Saving...' : 'Save change' }}
               </button>
-              <span v-if="overrideSaved" class="override-saved">Zapisano — poprawi przyszły triaż</span>
+              <span v-if="overrideSaved" class="override-saved">Saved — will improve future triage</span>
             </div>
           </div>
 
           <!-- Navigation actions -->
           <div class="issue-actions">
-            <button class="btn btn-sm" @click="briefingStore.prevIssue()" :disabled="currentIndex === 0">Poprzednia</button>
+            <button class="btn btn-sm" @click="briefingStore.prevIssue()" :disabled="currentIndex === 0">Previous</button>
             <button
               class="btn btn-primary btn-sm"
               @click="briefingStore.nextIssue()"
               v-if="currentIndex < briefing.issues.length - 1"
-            >Następna sprawa</button>
+            >Next issue</button>
             <button
               class="btn btn-primary btn-sm"
               @click="briefingStore.finishReview()"
               v-else
-            >Zakończ przegląd</button>
+            >Finish review</button>
           </div>
         </div>
       </div>
@@ -287,11 +287,11 @@
       <div v-if="phase === 'done'" class="phase-done">
         <div class="done-card">
           <div class="done-icon">&#10003;</div>
-          <h2>Briefing zakończony</h2>
-          <p>Przejrzano wszystkie {{ briefing.issues.length }} sprawy.</p>
+          <h2>Briefing complete</h2>
+          <p>Reviewed all {{ briefing.issues.length }} issues.</p>
           <div class="done-actions">
-            <button class="btn" @click="briefingStore.backToSummary()">Wróć do podsumowania</button>
-            <router-link to="/feed" class="btn btn-primary">Otwórz zgłoszenia</router-link>
+            <button class="btn" @click="briefingStore.backToSummary()">Back to summary</button>
+            <router-link to="/feed" class="btn btn-primary">Open issues</router-link>
           </div>
         </div>
       </div>
@@ -425,22 +425,22 @@ const escalateIssue = (issue) => {
 
 const scheduleVisit = (issue) => {
   showActions.value = false
-  alert(`Zaplanuj wizytę: ${issue.sender} — ${issue.category || 'ogólne'}`)
+  alert(`Schedule visit: ${issue.sender} — ${issue.category || 'general'}`)
 }
 
 const assignToTechnician = (issue) => {
   showActions.value = false
-  alert(`Przypisz do technika: ${issue.sender} — ${issue.category || 'ogólne'}`)
+  alert(`Assign to technician: ${issue.sender} — ${issue.category || 'general'}`)
 }
 
 const sendAcknowledgment = (issue) => {
   showActions.value = false
-  alert(`Wysłano potwierdzenie do: ${issue.sender}`)
+  alert(`Acknowledgment sent to: ${issue.sender}`)
 }
 
 const markResolved = (issue) => {
   showActions.value = false
-  alert(`Oznaczono jako rozwiązane: ${issue.sender} — ${issue.category || 'ogólne'}`)
+  alert(`Marked as resolved: ${issue.sender} — ${issue.category || 'general'}`)
 }
 
 // Suggested action based on issue context
@@ -457,8 +457,8 @@ const suggestedAction = (issue) => {
     return {
       type: 'urgent',
       icon: '\u{1F6E0}',
-      name: 'Wyślij technika natychmiast',
-      desc: `Aktywna awaria (${category}) — wymaga interwencji na miejscu`,
+      name: 'Send technician immediately',
+      desc: `Active failure (${category}) — requires on-site intervention`,
       handler: assignToTechnician,
     }
   }
@@ -468,8 +468,8 @@ const suggestedAction = (issue) => {
     return {
       type: 'urgent',
       icon: '\u2709',
-      name: 'Odpowiedz nadawcy pilnie',
-      desc: `Lokator zgłaszał się ${followups}x — potrzebuje informacji zwrotnej`,
+      name: 'Reply to sender urgently',
+      desc: `Resident has followed up ${followups}x — needs a response`,
       handler: respondToSender,
     }
   }
@@ -479,8 +479,8 @@ const suggestedAction = (issue) => {
     return {
       type: 'high',
       icon: '\u{1F4C5}',
-      name: 'Zaplanuj wizytę dziś',
-      desc: `Sytuacja pilna (${category}) — wymaga oględzin`,
+      name: 'Schedule visit today',
+      desc: `Urgent situation (${category}) — requires inspection`,
       handler: scheduleVisit,
     }
   }
@@ -490,8 +490,8 @@ const suggestedAction = (issue) => {
     return {
       type: 'medium',
       icon: '\u{1F6E0}',
-      name: 'Przypisz do technika',
-      desc: `Wymaga uwagi dziś — ${category}`,
+      name: 'Assign to technician',
+      desc: `Needs attention today — ${category}`,
       handler: assignToTechnician,
     }
   }
@@ -501,8 +501,8 @@ const suggestedAction = (issue) => {
     return {
       type: 'medium',
       icon: '\u2709',
-      name: 'Wyślij potwierdzenie',
-      desc: 'Poinformuj nadawcę, że sprawa jest w toku',
+      name: 'Send acknowledgment',
+      desc: 'Let the sender know the issue is being handled',
       handler: sendAcknowledgment,
     }
   }
@@ -511,8 +511,8 @@ const suggestedAction = (issue) => {
   return {
     type: 'low',
     icon: '\u2709',
-    name: 'Wyślij potwierdzenie',
-    desc: 'Standardowa sprawa — potwierdź odbiór',
+    name: 'Send acknowledgment',
+    desc: 'Standard issue — confirm receipt',
     handler: sendAcknowledgment,
   }
 }
@@ -559,17 +559,17 @@ const submitOverride = async () => {
 
 const urgencyLabel = (urgency) => {
   const labels = {
-    immediate: 'teraz',
-    today: 'dziś',
-    this_week: 'ten tydzień',
-    no_rush: 'bez pośpiechu',
+    immediate: 'now',
+    today: 'today',
+    this_week: 'this week',
+    no_rush: 'no rush',
   }
   return labels[urgency] || urgency
 }
 
 const formatDate = (dateStr) => {
   const d = new Date(dateStr)
-  return d.toLocaleDateString('pl-PL', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+  return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 }
 
 onMounted(() => briefingStore.fetch())

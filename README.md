@@ -1,6 +1,6 @@
-# Nava — AI-Native Property Management Triage
+# Avan — AI-Native Property Management Triage
 
-Intelligent triage system for residential property managers in Eastern Central Europe. Nava processes incoming messages from residents via email, SMS, and voice — classifying, grouping, and prioritizing them using LLM-powered agents so the manager sees a clear briefing instead of raw noise.
+Intelligent triage system for residential property managers. Avan processes incoming messages from residents via email, SMS, and voice — classifying, grouping, and prioritizing them using LLM-powered agents so the manager sees a clear briefing instead of raw noise.
 
 ## What It Does
 
@@ -17,7 +17,7 @@ Intelligent triage system for residential property managers in Eastern Central E
 ```bash
 # Clone and start
 git clone <repository-url>
-cd nava
+cd avan
 
 # Optional: set OpenAI key for LLM-powered triage (works without it using regex fallback)
 echo "OPENAI_API_KEY=sk-..." > .env
@@ -58,7 +58,7 @@ frontend/src/
 ├── views/             # Briefing, Feed, Timeline, Respond
 ├── stores/            # Pinia stores (messages, briefing)
 ├── components/        # FireBar (simulation bar)
-├── labels.js          # Polish display labels for enums
+├── labels.js          # Display labels for enums
 ├── api.js             # Axios API client
 └── App.vue            # Layout with sidebar + router
 ```
@@ -143,7 +143,7 @@ Briefings are cached in MongoDB and only regenerated when messages change.
 ## Simulation
 
 The app includes a built-in simulation bar (bottom of screen) for testing:
-- **Magazine**: Pre-loaded Polish property management messages
+- **Magazine**: Pre-loaded property management messages
 - **Fire modes**: Single, burst (3), auto-fire with configurable rate
 - **Custom compose**: Send arbitrary messages through the triage pipeline
 - **Clear all**: Reset DB for fresh simulation runs
@@ -167,7 +167,7 @@ docker compose up -d --build backend
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `MONGODB_URL` | `mongodb://mongodb:27017` | MongoDB connection string |
-| `DATABASE_NAME` | `nava` | Database name |
+| `DATABASE_NAME` | `avan` | Database name |
 | `VITE_API_URL` | `http://localhost:8000` | Backend URL for frontend |
 | `OPENAI_API_KEY` | — | Required for LLM triage/briefing |
 | `LLM_MODEL` | `gpt-4o-mini` | OpenAI model to use |
@@ -181,16 +181,16 @@ docker compose up -d --build backend
 - **Intake layer uses simulated seed data.** Production: Twilio webhook (SMS), IMAP/SendGrid (email). This is "plumbing" — doesn't demonstrate system value.
 - **MongoDB for prototype** — zero config with Docker Compose, Beanie ODM gives type-safe models. Swapping backends means changing one adapter in `core/database.py`.
 - **LangGraph over plain LLM calls** — agent has state, conditional edges (escalations skip drafting), every decision is logged with `action_reason`. Not a prompt wrapper.
-- **Enum values in English internally, Polish display labels via `labels.js`** — zero migration on translation changes.
+- **Enum values match display labels in `labels.js`** — zero migration on translation changes.
 
 ### Known issues
 
 - **Latency:** triage runs server-side synchronously, UI refreshes on reload/navigation. No streaming. Fix: SSE or WebSocket on `/api/messages/{id}/stream`.
 - **Triage edge cases:** neighbor disputes, ambiguous issues get miscategorized. No "requires human review" fallback — override is post-hoc.
 - **Grouping:** works for a single building. Multiple buildings = false positives without a CRM mapping resident → unit → building.
-- **Multilingual:** CEE = PL/EN/UA/RO. Agent detects language and preserves original, but draft doesn't generate in sender's language. UI is Polish only. Target: draft in sender's language, admin interface in their language, cultural context (not just translation).
+- **Multilingual:** Agent detects language and preserves original, but draft doesn't generate in sender's language. UI is English only. Target: draft in sender's language, admin interface in their language, cultural context (not just translation).
 - **Draft responses:** suggested action + editable draft exist, but sending is simulated. No outbound channel integration.
-- **Regex fallback is shallow:** without `OPENAI_API_KEY`, only priority is set (no category, urgency, grouping, or draft). Polish patterns only — non-PL messages default to medium.
+- **Regex fallback is shallow:** without `OPENAI_API_KEY`, only priority is set (no category, urgency, grouping, or draft). English patterns only — non-English messages default to medium.
 
 ## License
 

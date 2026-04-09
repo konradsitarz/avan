@@ -22,7 +22,7 @@ export const useBriefingStore = defineStore('briefing', () => {
     try {
       data.value = await getBriefing()
     } catch (e) {
-      error.value = 'Nie udało się wygenerować briefingu'
+      error.value = 'Failed to generate briefing'
     } finally {
       loading.value = false
     }

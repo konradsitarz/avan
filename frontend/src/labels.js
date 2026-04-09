@@ -1,26 +1,26 @@
 export const priorityLabels = {
-  urgent: 'pilny',
-  high: 'wysoki',
-  medium: 'średni',
-  low: 'niski',
+  urgent: 'urgent',
+  high: 'high',
+  medium: 'medium',
+  low: 'low',
 }
 
 export const categoryLabels = {
-  safety: 'bezpieczeństwo',
-  plumbing: 'hydraulika',
-  electrical: 'elektryka',
-  noise: 'hałas',
-  maintenance: 'konserwacja',
-  billing: 'rozliczenia',
-  access: 'dostęp',
-  compliance: 'regulamin',
-  other: 'inne',
+  safety: 'safety',
+  plumbing: 'plumbing',
+  electrical: 'electrical',
+  noise: 'noise',
+  maintenance: 'maintenance',
+  billing: 'billing',
+  access: 'access',
+  compliance: 'compliance',
+  other: 'other',
 }
 
 export const channelLabels = {
   email: 'email',
   sms: 'SMS',
-  voice: 'telefon',
+  voice: 'phone',
 }
 
 export const label = (map, value) => map[value] || value

@@ -9,7 +9,7 @@ from ..models.override import TriageOverride
 async def init_db():
     """Initialize database connection and beanie ODM"""
     mongodb_url = os.getenv("MONGODB_URL", "mongodb://mongodb:27017")
-    database_name = os.getenv("DATABASE_NAME", "nava")
+    database_name = os.getenv("DATABASE_NAME", "avan")
 
     client = AsyncIOMotorClient(mongodb_url)
     database = client[database_name]

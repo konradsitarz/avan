@@ -1,19 +1,19 @@
 <template>
   <div class="respond-page">
     <div class="page-header">
-      <h1 class="page-title">Odpowiedzi</h1>
-      <p class="page-subtitle">Twórz i wysyłaj odpowiedzi na zgłoszenia</p>
+      <h1 class="page-title">Responses</h1>
+      <p class="page-subtitle">Create and send responses to issues</p>
     </div>
 
     <div class="respond-layout">
       <div class="respond-inbox">
         <div class="inbox-header">
-          <span class="inbox-title">Skrzynka</span>
+          <span class="inbox-title">Inbox</span>
           <select v-model="channelFilter" class="channel-select">
-            <option value="">Wszystkie kanały</option>
+            <option value="">All channels</option>
             <option value="email">Email</option>
             <option value="sms">SMS</option>
-            <option value="voice">Telefon</option>
+            <option value="voice">Phone</option>
           </select>
         </div>
         <div class="inbox-list">
@@ -32,7 +32,7 @@
             <p class="inbox-preview">{{ truncate(msg.content, 80) }}</p>
           </div>
           <div v-if="filteredMessages.length === 0" class="empty-state">
-            <p>Brak wiadomości</p>
+            <p>No messages</p>
           </div>
         </div>
       </div>
@@ -40,11 +40,11 @@
       <div class="respond-compose card" v-if="selected">
         <div class="compose-original">
           <div class="compose-original-header">
-            <span class="compose-label">Oryginalna wiadomość</span>
+            <span class="compose-label">Original message</span>
             <span class="badge" :class="`badge-${selected.priority}`">{{ label(priorityLabels, selected.priority) }}</span>
           </div>
           <div class="original-from">
-            <label>Od</label>
+            <label>From</label>
             <span>{{ selected.sender }}</span>
           </div>
           <div class="original-content">
@@ -52,7 +52,7 @@
           </div>
           <div class="original-meta">
             <span>{{ formatDate(selected.created_at) }}</span>
-            <span v-if="selected.followup_count > 0">{{ selected.followup_count }} ponowień</span>
+            <span v-if="selected.followup_count > 0">{{ selected.followup_count }} follow-ups</span>
           </div>
         </div>
 
@@ -60,11 +60,11 @@
 
         <div class="compose-form">
           <div class="compose-to">
-            <label>Do</label>
+            <label>To</label>
             <input :value="selected.sender" disabled />
           </div>
           <div class="compose-channel">
-            <label>Odpowiedz przez</label>
+            <label>Reply via</label>
             <div class="channel-options">
               <button
                 v-for="ch in replyChannels"
@@ -76,41 +76,41 @@
             </div>
           </div>
           <div class="compose-body">
-            <label>Odpowiedź</label>
-            <span v-if="selected.draft_response" class="draft-label">Wersja robocza wygenerowana przez AI</span>
+            <label>Response</label>
+            <span v-if="selected.draft_response" class="draft-label">AI-generated draft</span>
             <textarea
               v-model="replyText"
               rows="6"
-              placeholder="Wpisz odpowiedź..."
+              placeholder="Type your response..."
             ></textarea>
           </div>
           <div class="compose-generate">
-            <label>Wygeneruj odpowiedź AI</label>
+            <label>Generate AI response</label>
             <div class="generate-chips">
-              <button class="chip" :class="{ loading: generating }" :disabled="generating" @click="generateDraft(null)">Automatyczna</button>
-              <button class="chip" :class="{ loading: generating }" :disabled="generating" @click="generateDraft('ack')">Potwierdzenie</button>
-              <button class="chip" :class="{ loading: generating }" :disabled="generating" @click="generateDraft('escalate')">Eskalacja</button>
-              <button class="chip" :class="{ loading: generating }" :disabled="generating" @click="generateDraft('resolved')">Rozwiązano</button>
-              <button class="chip" :class="{ loading: generating }" :disabled="generating" @click="generateDraft('info')">Prośba o info</button>
+              <button class="chip" :class="{ loading: generating }" :disabled="generating" @click="generateDraft(null)">Auto</button>
+              <button class="chip" :class="{ loading: generating }" :disabled="generating" @click="generateDraft('ack')">Acknowledge</button>
+              <button class="chip" :class="{ loading: generating }" :disabled="generating" @click="generateDraft('escalate')">Escalate</button>
+              <button class="chip" :class="{ loading: generating }" :disabled="generating" @click="generateDraft('resolved')">Resolved</button>
+              <button class="chip" :class="{ loading: generating }" :disabled="generating" @click="generateDraft('info')">Request info</button>
             </div>
-            <span v-if="generating" class="generating-label">Generowanie...</span>
+            <span v-if="generating" class="generating-label">Generating...</span>
             <span v-if="generateError" class="generate-error">{{ generateError }}</span>
           </div>
           <div class="compose-actions">
-            <button class="btn" @click="clear">Anuluj</button>
+            <button class="btn" @click="clear">Cancel</button>
             <button class="btn btn-primary" @click="sendReply" :disabled="!replyText.trim()">
-              Wyślij odpowiedź
+              Send response
             </button>
           </div>
         </div>
       </div>
 
       <div class="respond-compose card empty-detail" v-else>
-        <p class="empty-state">Wybierz wiadomość, aby odpowiedzieć</p>
+        <p class="empty-state">Select a message to respond</p>
       </div>
     </div>
 
-    <div v-if="sent" class="toast">Odpowiedź wysłana (symulacja)</div>
+    <div v-if="sent" class="toast">Response sent (simulation)</div>
   </div>
 </template>
 
@@ -162,8 +162,8 @@ const generateDraft = async (tone) => {
     replyText.value = result.draft
   } catch (e) {
     generateError.value = e.response?.status === 503
-      ? 'LLM niedostępny — brak klucza API'
-      : 'Nie udało się wygenerować odpowiedzi'
+      ? 'LLM unavailable — no API key'
+      : 'Failed to generate response'
   } finally {
     generating.value = false
   }
