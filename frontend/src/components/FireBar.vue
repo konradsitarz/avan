@@ -1,6 +1,6 @@
 <template>
   <!-- Toggle tab — always visible at bottom -->
-  <button class="firebar-toggle" :class="{ open: isOpen }" @click="isOpen = !isOpen">
+  <button class="firebar-toggle" :class="{ open: isOpen, attract: shouldAttract }" @click="isOpen = !isOpen">
     <span class="toggle-icon">{{ isOpen ? '&#9660;' : '&#9650;' }}</span>
     <span class="toggle-label">Simulation</span>
   </button>
@@ -259,6 +259,14 @@ const magPercent = computed(() => {
   return ((magazine.value.length - currentIndex.value) / magazine.value.length) * 100
 })
 
+// Nudge the user to open the simulation when the briefing is empty/quiet.
+// "Quiet" = no urgent AND no high; total low volume.
+const shouldAttract = computed(() => {
+  if (isOpen.value) return false
+  const s = messagesStore.stats
+  return s.urgent === 0 && s.high === 0 && s.total < 3
+})
+
 const typeIcon = (type) => {
   return { email: '@', sms: '#', voice: '~' }[type] || '?'
 }
@@ -415,6 +423,33 @@ onUnmounted(() => {
 
 .firebar-toggle.open {
   bottom: 56px;
+}
+
+.firebar-toggle.attract {
+  background: #d2691e;
+  border-color: #ff8c3a;
+  color: #fff4e6;
+  animation: attractJump 1.2s ease-in-out infinite;
+  box-shadow: 0 0 12px rgba(255, 140, 58, 0.55), 0 0 24px rgba(255, 140, 58, 0.25);
+}
+
+.firebar-toggle.attract:hover {
+  background: #ff8c3a;
+  color: #fff;
+}
+
+@keyframes attractJump {
+  0%, 100% {
+    transform: translateX(-50%) translateY(0);
+    box-shadow: 0 0 10px rgba(255, 140, 58, 0.45), 0 0 20px rgba(255, 140, 58, 0.2);
+  }
+  40% {
+    transform: translateX(-50%) translateY(-8px);
+    box-shadow: 0 6px 18px rgba(255, 140, 58, 0.65), 0 0 28px rgba(255, 140, 58, 0.35);
+  }
+  60% {
+    transform: translateX(-50%) translateY(-4px);
+  }
 }
 
 .toggle-icon {
