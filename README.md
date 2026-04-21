@@ -2,6 +2,12 @@
 
 Intelligent triage system for residential property managers. Avan processes incoming messages from residents via email, SMS, and voice — classifying, grouping, and prioritizing them using LLM-powered agents so the manager sees a clear briefing instead of raw noise.
 
+## Walkthrough
+
+<video src="docs/Avan%20Triage%20Layer%20Walkthrough%20for%20Property%20Managers.mp4" controls width="720"></video>
+
+> If the video doesn't play inline, [download or open it here](docs/Avan%20Triage%20Layer%20Walkthrough%20for%20Property%20Managers.mp4).
+
 ## What It Does
 
 1. **Messages come in** from residents (email, SMS, voice transcription - currently simulated)
